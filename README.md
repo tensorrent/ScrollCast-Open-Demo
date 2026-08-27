@@ -1,29 +1,52 @@
-# SCROLLCAST Open Demo
+# SCROLLCAST — open briefing
 
-Public briefing for digital media ownership, distribution, and role-based access.
+Public briefing on sealed media delivery and revocable access, for festivals,
+sales agents, and rights holders.
 
-**This repository does not contain SCROLLCAST source.** Packager, player, keys, and tests stay in a private repo. Every published asset here is **ciphertext at rest**; the briefing is decrypted in the browser by an **obfuscated loader**.
+**Live page:** https://tensorrent.github.io/ScrollCast-Open-Demo/
 
-Live page (GitHub Pages): once enabled, `https://tensorrent.github.io/ScrollCast-Open-Demo/`
+## What this repository is
 
-## What you are looking at
+Published output. Every file here is generated from the private SCROLLCAST
+source repo by `npm run site` and pushed as static HTML. Nothing is written by
+hand in this tree, so send pull requests to the source repo rather than here.
 
-Festivals and rights holders already keep control in the theater (DCP + KDM). Online delivery usually does not: a Drive link, a WeTransfer, a USB, a downloaded screener is a copy, and a copy does not expire when you change a password.
+It is a briefing, so it is plainly readable on purpose: crawlable HTML, a real
+link-preview card, self-hosted fonts, and no third-party requests. There is no
+obfuscation, and none is claimed — a public marketing page has nothing to
+protect, and pretending otherwise would undercut the one thing this project is
+actually selling.
 
-SCROLLCAST sends a sealed package and issues **tickets** (N plays, until a date, or until you cancel). Integrity is enforced **before decode**: a swapped byte ends playback.
+## The demo is the real thing
 
-Industry terms, limits (including the clear-key ceiling), and the side-by-side with file share / Vimeo / DCP / DRM are on the decrypted page — not in this README, and not as readable source in this tree.
+The verification demo in the hero is not a mockup or an animation:
 
-## Layout (what GitHub hosts)
+- `scrollcast.json` is a real manifest for a real stream, signed with a real
+  Ed25519 publisher key.
+- `media/` holds real CMAF segments produced by the real packager.
+- `scrollcast-verify.js` is the shipping codec, bundled from source with the
+  publisher key compiled in. It exposes the same verification entry points the
+  packager and the offline prover use.
+- The page checks the manifest signature before fetching a single media byte,
+  then re-derives both addresses — the 16-hex substrate root and the sha256 —
+  from the bytes that actually arrived, and hands only verified segments to the
+  decoder.
+- **Change one byte** flips a real byte in a real segment before verification
+  runs. The halt, and the two disagreeing addresses it prints, are the verifier
+  rejecting it. Nothing about that outcome is scripted.
 
-| Path | What it is |
-|---|---|
-| `index.html` | Shell only. No briefing markup. |
-| `assets/payload.bin` | AES-256-GCM ciphertext of the briefing. |
-| `assets/boot.js` | Obfuscated Web Crypto loader. |
+You are meant to check this. Open devtools and watch the fetches, or take
+`media/main/seg003.m4s`, flip a byte, and confirm its digest stops matching the
+entry in `scrollcast.json`.
 
-Readable HTML/CSS/JS is not committed.
+## What is not here
+
+No packager, no player source, no keys, no tests — those stay in the private
+repo. What ships here is the briefing plus the small sample stream it verifies.
 
 ## Not claimed
 
-Not a compression codec. Not a DCP replacement for the booth. Not Widevine / FairPlay. Tickets govern the next redemption; they do not make a completed play unrecordable.
+Not a compression codec. Not a DCP replacement for the booth. Not Widevine or
+FairPlay. No forensic watermarking. Tickets govern the next redemption; they do
+not make a play that already happened unrecordable. The limits are stated on the
+page itself, in the same type size as everything else.

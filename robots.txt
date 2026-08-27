@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://tensorrent.github.io/ScrollCast-Open-Demo/sitemap.xml

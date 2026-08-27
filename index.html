@@ -3,12 +3,311 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SCROLLCAST</title>
-<meta name="description" content="SCROLLCAST open briefing. Encrypted at rest.">
-<meta http-equiv="Cache-Control" content="no-store">
+<title>SCROLLCAST — a screener you can take back</title>
+<meta name="description" content="Send a link and you have sent a copy. SCROLLCAST sends a sealed, publisher-signed stream and issues access you can count, time-limit, or cancel. Tampering ends playback before the decoder sees a byte.">
+<link rel="canonical" href="https://tensorrent.github.io/ScrollCast-Open-Demo/">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="SCROLLCAST">
+<meta property="og:title" content="SCROLLCAST — a screener you can take back">
+<meta property="og:description" content="Send a link and you have sent a copy. SCROLLCAST sends a sealed, publisher-signed stream and issues access you can count, time-limit, or cancel.">
+<meta property="og:url" content="https://tensorrent.github.io/ScrollCast-Open-Demo/">
+<meta property="og:image" content="https://tensorrent.github.io/ScrollCast-Open-Demo/social.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="SCROLLCAST — a screener you can take back">
+<meta name="twitter:description" content="A sealed, publisher-signed stream. Access you can count, time-limit, or cancel.">
+<meta name="twitter:image" content="https://tensorrent.github.io/ScrollCast-Open-Demo/social.png">
+<meta name="theme-color" content="#0d0c0b">
+
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preload" href="fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/instrument-serif.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<noscript>JavaScript is required to decrypt this briefing.</noscript>
-<script src="assets/boot.c1c31b59.js"></script>
+
+<header class="site-head">
+  <div class="wrap">
+    <a class="brand" href="#top">SCROLL<b>CAST</b></a>
+    <nav class="site-nav">
+      <a href="#demo">Demo</a>
+      <a href="#problem">The problem</a>
+      <a href="#how">How it works</a>
+      <a href="#fit">Where it fits</a>
+      <a href="#limits">Limits</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- ── hero ──────────────────────────────────────────────────────── -->
+  <section class="hero">
+    <div class="wrap">
+      <p class="eyebrow">Open briefing · screener security</p>
+      <h1>A screener you can <em>take back</em>.</h1>
+      <p class="lede">Send a link and you have sent a copy — and a copy never expires, never stops at three plays, and never comes back. SCROLLCAST sends a sealed stream instead, plus access you can count, time-limit, or cancel.</p>
+      <div class="btn-row">
+        <a class="btn btn-primary" href="#demo">Watch it break</a>
+        <a class="btn" href="#how">How it works</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── the demo ──────────────────────────────────────────────────── -->
+  <section class="stage-section" id="demo">
+    <div class="wrap">
+      <div class="stage" id="sc-stage">
+        <div class="stage-head">
+          <span class="stage-label">Live verification — running in this browser</span>
+          <span class="sc-badge" id="sc-badge">loading…</span>
+        </div>
+
+        <div class="screen">
+          <video id="sc-video" muted playsinline autoplay preload="auto" aria-label="Sample stream verifying in real time"></video>
+          <img id="sc-poster" src="poster.jpg" alt="Frame from the sample stream">
+          <div class="sc-halt" id="sc-halt">
+            <p class="sc-halt-title">Playback stopped</p>
+            <p class="sc-halt-seg" id="sc-halt-seg"></p>
+            <div class="sc-halt-rows">
+              <div><span>the signed manifest says</span><span class="mono v-expect" id="sc-halt-expect"></span></div>
+              <div><span>these bytes derive</span><span class="mono v-got" id="sc-halt-got"></span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sc-strip" id="sc-strip" aria-hidden="true"></div>
+
+        <div class="stage-foot">
+          <div class="sc-stats">
+            <span><b id="sc-stat-segs">0</b> segments verified</span>
+            <span><b id="sc-stat-blocks">0</b> blocks re-derived</span>
+            <span><b id="sc-stat-bytes">0.00</b> MiB</span>
+          </div>
+          <div class="stage-actions">
+            <button class="btn" id="sc-tamper" type="button">Change one byte</button>
+            <button class="btn" id="sc-restart" type="button" hidden>Restart</button>
+          </div>
+        </div>
+
+        <p class="sc-note" id="sc-note">This is not a mockup. The page fetched a signed manifest, checked its Ed25519 signature against a publisher key compiled into the script, and is re-deriving every segment's address from the bytes that actually arrived before any of them reach the decoder.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── the problem ───────────────────────────────────────────────── -->
+  <section class="band" id="problem">
+    <div class="wrap">
+      <p class="eyebrow">The problem</p>
+      <h2>In the theatre you would never mail an unlocked master.</h2>
+      <div class="narrow">
+        <p class="lede">Cinemas solved this decades ago. A DCP ships encrypted and the key — the KDM — is issued to one server, for one window of dates. When the run ends, the key stops working. Nobody thinks that is unreasonable.</p>
+        <p class="lede">Online delivery skipped that step. A Drive link, a WeTransfer, a password-protected Vimeo page, a downloaded screener: each one is a copy sitting on a machine you do not control. You can change the password. You cannot change the copy.</p>
+      </div>
+
+      <div class="grid-2">
+        <div class="card is-loss">
+          <span class="card-tag">Sending a file</span>
+          <h3>You send the thing itself</h3>
+          <ul class="plain is-loss">
+            <li>Every recipient now holds a complete, playable master.</li>
+            <li>Forwarding is invisible to you and costs them nothing.</li>
+            <li>Revoking a link does not reach a download.</li>
+            <li>You cannot tell a second viewing from a second viewer.</li>
+          </ul>
+        </div>
+        <div class="card is-win">
+          <span class="card-tag">Sending a ticket</span>
+          <h3>You send permission</h3>
+          <ul class="plain">
+            <li>The package travels sealed; the key never rides with it.</li>
+            <li>Access is a ticket: N plays, until a date, or until you cancel.</li>
+            <li>Cancelling stops the next redemption everywhere at once.</li>
+            <li>The link is safe to post — without a ticket it plays nothing.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── how it works ──────────────────────────────────────────────── -->
+  <section class="band band-alt" id="how">
+    <div class="wrap">
+      <p class="eyebrow">How it works</p>
+      <h2>Four steps. The film and the permission travel apart.</h2>
+      <p class="lede narrow">That separation is the whole idea. Anyone can hold the package; only a live ticket turns it back into a picture.</p>
+
+      <div class="grid-4">
+        <div class="card">
+          <span class="n">01</span>
+          <h3>Seal</h3>
+          <p class="dim">Your master is packaged into ordinary streaming segments, encrypted, and signed with your publisher key. The key is held back — it is not in the package.</p>
+        </div>
+        <div class="card">
+          <span class="n">02</span>
+          <h3>Send</h3>
+          <p class="dim">The recipient gets a link. On its own it plays nothing, so it is safe in an email, a submission portal, or a public post.</p>
+        </div>
+        <div class="card">
+          <span class="n">03</span>
+          <h3>Admit</h3>
+          <p class="dim">You issue a ticket governed by a rule — three plays, ten days, or open until you say otherwise. The server releases the key one session at a time.</p>
+        </div>
+        <div class="card">
+          <span class="n">04</span>
+          <h3>Verify</h3>
+          <p class="dim">Every segment is re-addressed from the bytes that arrived and checked against your signature before the decoder is allowed to touch it.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── where it fits ─────────────────────────────────────────────── -->
+  <section class="band" id="fit">
+    <div class="wrap">
+      <p class="eyebrow">Where it fits</p>
+      <h2>What each option actually gives you.</h2>
+      <p class="lede narrow">This is not a claim to replace any of these. It is a claim about one column that has been missing from online delivery.</p>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">&nbsp;</th>
+              <th scope="col">Expires after sending</th>
+              <th scope="col">Play count enforced</th>
+              <th scope="col">Tampering detected</th>
+              <th scope="col">Runs in a browser</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Drive / WeTransfer</th>
+              <td class="is-no">No — it is a download</td>
+              <td class="is-no">No</td>
+              <td class="is-no">No</td>
+              <td class="is-yes">Yes</td>
+            </tr>
+            <tr>
+              <th scope="row">Password-protected Vimeo</th>
+              <td class="is-no">Link only, not the copy</td>
+              <td class="is-no">No</td>
+              <td class="is-no">No</td>
+              <td class="is-yes">Yes</td>
+            </tr>
+            <tr>
+              <th scope="row">DCP + KDM</th>
+              <td class="is-yes">Yes</td>
+              <td class="is-no">By date, not by play</td>
+              <td class="is-yes">Yes</td>
+              <td class="is-no">No — booth only</td>
+            </tr>
+            <tr>
+              <th scope="row">Studio DRM</th>
+              <td class="is-yes">Yes</td>
+              <td class="is-yes">Yes</td>
+              <td class="is-no">Not as a stated property</td>
+              <td class="is-yes">Yes, with licensing</td>
+            </tr>
+            <tr>
+              <th scope="row">SCROLLCAST</th>
+              <td class="is-yes">Yes</td>
+              <td class="is-yes">Yes</td>
+              <td class="is-yes">Yes — before decode</td>
+              <td class="is-yes">Yes</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── figures ───────────────────────────────────────────────────── -->
+  <section class="band band-alt" id="evidence">
+    <div class="wrap">
+      <p class="eyebrow">Evidence</p>
+      <h2>Measured on the shipping pipeline, not estimated.</h2>
+      <div class="figures">
+        <div class="figure">
+          <span class="v">~5,900</span>
+          <span class="k">explicit tamper attempts across the test campaign</span>
+        </div>
+        <div class="figure">
+          <span class="v">0</span>
+          <span class="k">that reached the decoder</span>
+        </div>
+        <div class="figure">
+          <span class="v">0.053%</span>
+          <span class="k">size overhead added to the media (0.014% gzipped)</span>
+        </div>
+        <div class="figure">
+          <span class="v">1,097</span>
+          <span class="k">automated checks green on every commit</span>
+        </div>
+      </div>
+      <p class="dim" style="margin-top:1.6rem;font-size:.9rem">The stream playing above was built by the same packager, signed with the same tooling, and is being verified by the same code that runs in production — bundled straight from source into this page.</p>
+    </div>
+  </section>
+
+  <!-- ── limits ────────────────────────────────────────────────────── -->
+  <section class="band" id="limits">
+    <div class="wrap">
+      <p class="eyebrow">Limits</p>
+      <h2>What this does not do.</h2>
+      <p class="lede narrow">Worth saying before anyone asks. A security claim is only useful if its edges are stated.</p>
+
+      <div class="narrow" style="margin-top:2rem">
+        <div class="limit">
+          <h3>It does not stop a camera pointed at a screen.</h3>
+          <p>Nothing does. Tickets govern the next redemption; they cannot un-see a play that already happened.</p>
+        </div>
+        <div class="limit">
+          <h3>It is not Widevine or FairPlay.</h3>
+          <p>Once a play is granted, that browser held a key. This is the same ceiling every clear-key scheme has. What it adds is that access is countable, expirable, and cancellable — and that integrity is enforced before decode.</p>
+        </div>
+        <div class="limit">
+          <h3>It does not watermark or trace individual viewers.</h3>
+          <p>There is no forensic watermarking here and none is claimed. What is recorded is redemption: which ticket was used, when, and how many plays remain.</p>
+        </div>
+        <div class="limit">
+          <h3>It is not a compression codec.</h3>
+          <p>The picture stays H.264/AAC in ordinary CMAF segments. This wraps the codec; it does not compete with it.</p>
+        </div>
+        <div class="limit">
+          <h3>It does not replace a DCP in the booth.</h3>
+          <p>Theatrical projection has its own chain and should keep it. This is for everything that currently travels as a link.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── contact ───────────────────────────────────────────────────── -->
+  <section class="close-band" id="contact">
+    <div class="wrap narrow" style="margin:0 auto">
+      <p class="eyebrow" style="justify-content:center">Next step</p>
+      <h2>Bring a film and we will seal it.</h2>
+      <p class="lede">The fastest way to judge this is to watch it happen to something of yours. Send a clip and you will get back a link that plays nothing, plus a ticket that makes it play three times and then stops.</p>
+      <div class="btn-row">
+        <a class="btn btn-primary" href="mailto:hello@tensorrent.io?subject=SCROLLCAST%20%E2%80%94%20screener%20test">Get in touch</a>
+        <a class="btn" href="#demo">Run the demo again</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-foot">
+  <div class="wrap">
+    <span>SCROLLCAST — open briefing. Built 2026-08-27.</span>
+    <span class="fingerprint">publisher 29bf58bbe755bc91… · 8 segments · 7,884 blocks</span>
+  </div>
+</footer>
+
+<script src="scrollcast-verify.js"></script>
+<script src="demo.js" data-base=""></script>
 </body>
 </html>

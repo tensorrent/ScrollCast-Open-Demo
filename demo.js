@@ -199,6 +199,11 @@
     if (!mseMode) { await sleep(FALLBACK_PACE_MS); return; }
     for (;;) {
       if (myRun !== run || phase === "halted") return;
+      // If playback is not actually running — autoplay refused, low power
+      // mode, the viewer paused it — there is no playhead to follow and
+      // gating on currentTime would stall the demo permanently. Pace on a
+      // timer instead so verification still visibly proceeds.
+      if (el.video.paused) { await sleep(FALLBACK_PACE_MS); return; }
       var t = el.video.currentTime || 0;
       // Before playback actually starts, let a few segments through so there
       // is something to decode; after that, follow the playhead.
@@ -354,6 +359,13 @@
   el.restart.addEventListener("click", function () {
     setNote(DEFAULT_NOTE);
     start();
+  });
+
+  // Recovery for a browser that refused autoplay: let the viewer start it.
+  el.video.addEventListener("click", function () {
+    if (phase === "halted") return;
+    if (el.video.paused) { el.video.play().catch(function () {}); }
+    else { el.video.pause(); }
   });
 
   start();

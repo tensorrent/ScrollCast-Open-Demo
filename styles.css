@@ -161,6 +161,7 @@ p  { margin: 0 0 1rem; }
 .screen video, .screen img {
   width: 100%; height: 100%; display: block; object-fit: cover;
 }
+.screen video { cursor: pointer; }
 .stage.is-noplayback video { display: none; }
 .screen img { display: none; }
 .stage.is-noplayback img { display: block; }

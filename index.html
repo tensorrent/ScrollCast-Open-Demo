@@ -111,6 +111,25 @@
       <div class="byo-cols">
         <div class="byo-col">
           <h3 class="byo-step"><span>1</span> Seal something</h3>
+          <div class="byo-terms">
+            <div class="byo-term">
+              <span class="byo-term-label">how long the code works</span>
+              <div class="byo-chips" id="byo-rule-chips" role="radiogroup" aria-label="How long the code works">
+                <button class="byo-chip" type="button" role="radio" aria-checked="false" data-rule="count:1">1 open</button>
+                <button class="byo-chip" type="button" role="radio" aria-checked="false" data-rule="until:1">1 day</button>
+                <button class="byo-chip is-on" type="button" role="radio" aria-checked="true" data-rule="until:3">3 days</button>
+                <button class="byo-chip" type="button" role="radio" aria-checked="false" data-rule="forever">no limit</button>
+              </div>
+            </div>
+            <div class="byo-term">
+              <span class="byo-term-label">what they can do with it</span>
+              <div class="byo-chips" id="byo-role-chips" role="radiogroup" aria-label="What the recipient can do">
+                <button class="byo-chip is-on" type="button" role="radio" aria-checked="true" data-role="play">play</button>
+                <button class="byo-chip" type="button" role="radio" aria-checked="false" data-role="share">play + pass on</button>
+                <button class="byo-chip" type="button" role="radio" aria-checked="false" data-role="edit">play + download</button>
+              </div>
+            </div>
+          </div>
           <div class="byo-drop" id="byo-drop">
             <label class="btn btn-primary" for="byo-file">Choose a file</label>
             <input id="byo-file" type="file" accept="video/*,image/*" hidden>
@@ -126,7 +145,9 @@
               <input id="byo-open-code" class="mono" placeholder="32-character code" autocomplete="off" spellcheck="false">
               <button class="btn" id="byo-open-go" type="button">Open</button>
             </div>
+            <p class="byo-open-terms mono" id="byo-open-terms" hidden></p>
             <p class="byo-open-result" id="byo-open-result"></p>
+            <a class="btn byo-open-save" id="byo-open-save" hidden download>Download the original</a>
           </div>
         </div>
       </div>
@@ -135,6 +156,23 @@
         <div class="stage-head">
           <span class="stage-label" id="byo-name">your file</span>
           <span class="sc-badge" id="byo-badge">reading…</span>
+        </div>
+
+        <div class="byo-share" id="byo-share" hidden>
+          <div class="byo-share-terms">
+            <span class="byo-share-title">Sealed. Send these two things separately.</span>
+            <span class="byo-share-rule mono" id="byo-share-rule"></span>
+          </div>
+          <div class="byo-share-row">
+            <a class="btn btn-primary" id="byo-download" download>Download the sealed file</a>
+            <div class="byo-code-row">
+              <label class="dim" for="byo-code">the code &mdash; send this separately</label>
+              <div class="byo-open-row">
+                <input id="byo-code" class="mono" readonly>
+                <button class="btn" id="byo-copy" type="button">copy</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="screen" id="byo-media">
@@ -164,17 +202,6 @@
           </div>
         </div>
 
-        <div class="byo-share" id="byo-share" hidden>
-          <a class="btn btn-primary" id="byo-download" download>Download the sealed file</a>
-          <div class="byo-code-row">
-            <label class="dim" for="byo-code">the code &mdash; send this separately</label>
-            <div class="byo-open-row">
-              <input id="byo-code" class="mono" readonly>
-              <button class="btn" id="byo-copy" type="button">copy</button>
-            </div>
-          </div>
-        </div>
-
         <p class="sc-credit mono" id="byo-progress"></p>
         <p class="sc-note" id="byo-note">Your file is encrypted and addressed with the same code the packager uses, signed with a throwaway key generated in this tab, then verified back the way a recipient would.</p>
       </div>
@@ -185,8 +212,12 @@
           <p>Hand someone the sealed file however you like &mdash; AirDrop across a table, WeTransfer, a USB stick &mdash; and send the code by text. Without the code the container plays nothing: it is checked against <span class="mono">sha256(key)</span> before a single byte is decrypted, and every chunk is verified before it is decrypted rather than after.</p>
         </div>
         <div class="limit">
-          <h3>Play counts, expiry and revocation are not in this page.</h3>
-          <p>A rule only binds at a gate the key must pass through, and a static page has no gate &mdash; anything counting plays here would be decoration, and we do not ship those. Those rules live in the hosted app, which holds the key and releases it one session at a time. Once you have a play, this page&rsquo;s code is permanent; that is the honest limit of sharing without a server.</p>
+          <h3>The terms travel inside the signed container.</h3>
+          <p>The window you pick and what the recipient may do are written into the manifest <em>before</em> it is signed, so they cannot be edited without breaking the signature &mdash; change one character of the rule and the container fails to verify, in front of them. This page reads those terms and refuses an expired code before it decrypts anything.</p>
+        </div>
+        <div class="limit">
+          <h3>What a page without a server still cannot do.</h3>
+          <p>Honouring a rule is not the same as enforcing one. This page can refuse, but it cannot stop someone opening the container with different software, and &ldquo;1 open&rdquo; is remembered in the opener&rsquo;s own browser, so another browser is another open. Counting plays for real needs a gate the key must pass through &mdash; that is the hosted app, which holds the key and releases it one session at a time, and can cancel a code after you have sent it.</p>
         </div>
         <div class="limit">
           <h3>It does not transcode.</h3>

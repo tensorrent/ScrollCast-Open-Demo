@@ -46,9 +46,11 @@
     note: $("byo-note"), progress: $("byo-progress"),
     tamper: $("byo-tamper"), reset: $("byo-reset"),
     share: $("byo-share"), download: $("byo-download"), code: $("byo-code"), copy: $("byo-copy"),
+    ruleChips: $("byo-rule-chips"), roleChips: $("byo-role-chips"), shareRule: $("byo-share-rule"),
     // open
     openInput: $("byo-open-file"), openDrop: $("byo-open-drop"),
     openCode: $("byo-open-code"), openGo: $("byo-open-go"), openResult: $("byo-open-result"),
+    openTerms: $("byo-open-terms"), openSave: $("byo-open-save"),
   };
 
   if (!SC || !el.panel || !SC.generateKeypair || !SC.keyCommitment) return;
@@ -77,6 +79,74 @@
   var file = null, sealed = null, chunks = [], armAt = -1, nextIndex = 0;
   var totals = { chunks: 0, blocks: 0, bytes: 0 };
   var cells = [], objectUrls = [];
+
+  // ── terms ────────────────────────────────────────────────────────────────
+  //
+  // Same vocabulary as the hosted app's admission rules (tools/app/admission.mjs),
+  // so a container sealed here describes its terms the way a ticket does there.
+  // The difference is where they bind: there a gate holds the key and enforces
+  // them; here they ride inside the signed manifest, which makes them
+  // tamper-evident but only as binding as the opener chooses to be. The page
+  // says so rather than implying otherwise.
+  var ROLE_LABEL = { play: "play only", share: "play and pass on", edit: "play and download" };
+
+  function pickedFrom(group, attr, fallback) {
+    var on = group && group.querySelector(".is-on");
+    return (on && on.dataset[attr]) || fallback;
+  }
+  var selectedRule = function () { return pickedFrom(el.ruleChips, "rule", "until:3"); };
+  var selectedRole = function () { return pickedFrom(el.roleChips, "role", "play"); };
+
+  function buildAccess(now) {
+    var spec = selectedRule(), m, rule;
+    if (spec === "forever") rule = { kind: "forever" };
+    else if ((m = spec.match(/^count:(\d+)$/))) rule = { kind: "count", max: +m[1] };
+    else if ((m = spec.match(/^until:(\d+)$/))) {
+      rule = { kind: "until", days: +m[1], until: new Date(now + (+m[1]) * 86400000).toISOString() };
+    } else rule = { kind: "forever" };
+    return { rule: rule, role: selectedRole() };
+  }
+
+  function describeAccess(a) {
+    if (!a || !a.rule) return "no limit \u00b7 play only";
+    var r = a.rule, when;
+    if (r.kind === "count") when = r.max === 1 ? "one open" : r.max + " opens";
+    else if (r.kind === "until") when = "until " + new Date(r.until).toLocaleString();
+    else when = "no time limit";
+    return when + " \u00b7 " + (ROLE_LABEL[a.role] || "play only");
+  }
+
+  // "1 open" is remembered per browser, keyed by the container's key
+  // commitment — never the key itself. A different browser is a different
+  // count, which is exactly why the page does not call this enforcement.
+  var opensKey = function (keyId) { return "sc-open:" + String(keyId || "").slice(0, 32); };
+  function opensSoFar(keyId) {
+    try { return parseInt(localStorage.getItem(opensKey(keyId)) || "0", 10) || 0; } catch (e) { return 0; }
+  }
+  function noteOpen(keyId) {
+    try { localStorage.setItem(opensKey(keyId), String(opensSoFar(keyId) + 1)); } catch (e) {}
+  }
+
+  /** null when the container may be opened, else the reason it may not. */
+  function refuseReason(header) {
+    var a = header && header.access;
+    if (!a || !a.rule) return null;             // sealed before terms existed
+    var r = a.rule;
+    if (r.kind === "until" && r.until) {
+      if (Date.now() > Date.parse(r.until)) {
+        return "this code expired on " + new Date(r.until).toLocaleString() + " \u2014 nothing was decrypted";
+      }
+    }
+    if (r.kind === "count") {
+      var used = opensSoFar((header.encryption || {}).keyId);
+      if (used >= r.max) {
+        return r.max === 1
+          ? "this code was set to open once, and it already has \u2014 nothing was decrypted"
+          : "this code allowed " + r.max + " opens and all of them are used \u2014 nothing was decrypted";
+      }
+    }
+    return null;
+  }
 
   function kindOf(f) {
     if (/^image\//.test(f.type) || IMAGE_RE.test(f.name)) return "image";
@@ -204,10 +274,14 @@
     if (myRun !== run) return;
 
     var kp = SC.generateKeypair();
+    var access = buildAccess(Date.now());
     var header = SC.signManifest({
       format: "scrollcast-sealed", version: 1,
       title: file.name, mime: file.type || "", kind: kind,
       createdAt: new Date().toISOString(),
+      // Signed with everything else, so the window and the role cannot be
+      // edited after the fact without the container failing to verify.
+      access: access,
       coveredBytes: covered, totalBytes: file.size,
       // No `key` field. The commitment is here so a wrong code is rejected
       // before decryption; the key itself travels separately, by hand.
@@ -235,7 +309,12 @@
     el.download.href = trackUrl(URL.createObjectURL(sealed.blob));
     el.download.download = file.name.replace(/\.[^.]+$/, "") + ".scrollcast";
     el.code.value = keyHex;
+    if (el.shareRule) el.shareRule.textContent = describeAccess(access);
     el.share.hidden = false;
+    // The code used to render below a full-size player, off the bottom of the
+    // screen, so people reported that sealing never gave them one. Put it in
+    // front of them.
+    try { el.share.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) { el.share.scrollIntoView(); }
 
     // Show the original locally so there is something on screen while the
     // verification pass runs. The recipient's copy comes from the container.
@@ -307,7 +386,19 @@
       return;
     }
     var v = SC.verifyManifestWith(incoming.header, (incoming.header.signature || {}).publicKey || "");
-    if (!v.valid) { incoming = null; return openStatus("this container's signature does not verify — it has been altered", "bad"); }
+    if (!v.valid) {
+      incoming = null;
+      if (el.openTerms) el.openTerms.hidden = true;
+      return openStatus("this container's signature does not verify — it has been altered", "bad");
+    }
+    // The terms verified along with everything else, so they are safe to show
+    // before a code is entered.
+    if (el.openTerms) {
+      var acc = incoming.header.access;
+      el.openTerms.textContent = acc ? "terms: " + describeAccess(acc) : "terms: none — sealed before terms existed";
+      el.openTerms.hidden = false;
+    }
+    if (el.openSave) el.openSave.hidden = true;
     openStatus(incoming.header.title + " · " + incoming.header.segments.length + " chunks · enter the code to open it", null);
   }
 
@@ -321,6 +412,11 @@
     if (SC.keyCommitment(code) !== incoming.header.encryption.keyId) {
       return openStatus("wrong code — nothing was decrypted", "bad");
     }
+
+    // Terms are checked after the code, so a stranger holding the file but not
+    // the code learns nothing about them, and still before any decryption.
+    var refusal = refuseReason(incoming.header);
+    if (refusal) return openStatus(refusal, "bad");
 
     openStatus("code accepted · verifying…", "ok");
     var segs = incoming.header.segments;
@@ -345,10 +441,23 @@
     totals = { chunks: segs.length, blocks: segs.reduce(function (a, s) { return a + s.blocks; }, 0),
                bytes: segs.reduce(function (a, s) { return a + s.bytes; }, 0) };
     paintStats();
+    noteOpen(incoming.header.encryption.keyId);
+
+    var acc2 = incoming.header.access || {};
     setBadge("opened · every byte verified", "ok");
     el.progress.textContent = "opened from a sealed container with the code";
     showMedia(incoming.header.kind === "image" ? "image" : "video", url);
-    openStatus("opened — every chunk verified before it was decrypted", "ok");
+
+    // The role decides what the page offers. Someone determined can still reach
+    // the decoded blob through devtools — this is what the role means in the
+    // interface, not a claim about what it prevents.
+    if (el.openSave) {
+      var mayKeep = acc2.role === "edit";
+      el.openSave.hidden = !mayKeep;
+      if (mayKeep) { el.openSave.href = url; el.openSave.download = incoming.header.title || "original"; }
+    }
+    openStatus("opened — every chunk verified before it was decrypted"
+      + (acc2.role ? " · " + (ROLE_LABEL[acc2.role] || "play only") : ""), "ok");
   }
 
   // ── controls ─────────────────────────────────────────────────────────────
@@ -363,6 +472,24 @@
     el.tamper.textContent = "Change one byte";
     seal(f);
   }
+
+  // Terms are chosen before sealing because they are signed into the manifest.
+  // Changing one after the fact therefore has to re-seal, which also issues a
+  // new code — the old one would otherwise still open the old container.
+  [[el.ruleChips, "rule"], [el.roleChips, "role"]].forEach(function (pair) {
+    var group = pair[0];
+    if (!group) return;
+    group.addEventListener("click", function (e) {
+      var chip = e.target.closest(".byo-chip");
+      if (!chip || chip.classList.contains("is-on")) return;
+      group.querySelectorAll(".byo-chip").forEach(function (c) {
+        var on = c === chip;
+        c.classList.toggle("is-on", on);
+        c.setAttribute("aria-checked", on ? "true" : "false");
+      });
+      if (file && phase !== "sealing") seal(file);
+    });
+  });
 
   el.input.addEventListener("change", function (e) { choose(e.target.files && e.target.files[0]); });
   el.openInput.addEventListener("change", function (e) { chooseSealed(e.target.files && e.target.files[0]); });

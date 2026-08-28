@@ -358,11 +358,40 @@ th[scope="row"] { font-weight: 500; color: var(--ink); font-family: inherit; tex
 .byo-open-result.is-ok { color: var(--ok); }
 .byo-open-result.is-bad { color: var(--fail); }
 
+/* terms — the window and the role, chosen before sealing because they are
+   signed into the manifest */
+.byo-terms { display: grid; gap: .8rem; margin-bottom: 1rem; }
+.byo-term { display: flex; flex-direction: column; gap: .4rem; }
+.byo-term-label {
+  font-size: .72rem; letter-spacing: .09em; text-transform: uppercase; color: var(--dim);
+}
+.byo-chips { display: flex; gap: .4rem; flex-wrap: wrap; }
+.byo-chip {
+  font: inherit; font-size: .82rem; line-height: 1;
+  padding: .45rem .7rem; border-radius: 999px; cursor: pointer;
+  color: var(--dim); background: transparent;
+  border: 1px solid var(--line-2);
+  transition: color .12s, border-color .12s, background .12s;
+}
+.byo-chip:hover { color: var(--ink); border-color: var(--dim); }
+.byo-chip.is-on {
+  color: #17130c; background: var(--brass); border-color: var(--brass); font-weight: 600;
+}
+
 .byo-share {
-  display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap;
-  padding: 1rem 1.1rem; border-top: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: .8rem;
+  padding: 1rem 1.1rem; border-bottom: 1px solid var(--line);
+  background: var(--raised);
 }
 .byo-share[hidden] { display: none; }
+.byo-share-terms { display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap; }
+.byo-share-title { font-weight: 600; }
+.byo-share-rule { font-size: .8rem; color: var(--brass); }
+.byo-share-row { display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap; }
+.byo-open-terms { margin: .8rem 0 0; font-size: .78rem; color: var(--brass); }
+.byo-open-terms[hidden] { display: none; }
+.byo-open-save { margin-top: .8rem; }
+.byo-open-save[hidden] { display: none; }
 .byo-code-row { flex: 1 1 20rem; }
 .byo-code-row label { display: block; font-size: .76rem; margin-bottom: .1rem; }
 .byo-code-row .byo-open-row { margin-top: .35rem; justify-content: flex-start; }

@@ -304,3 +304,14 @@ th[scope="row"] { font-weight: 500; color: var(--ink); font-family: inherit; tex
   font-size: .74rem; color: var(--dim); opacity: .8;
 }
 .sc-credit em { font-style: italic; }
+
+/* named contact under the closing CTA */
+.contact-card {
+  margin-top: 2.4rem; padding-top: 1.6rem;
+  border-top: 1px solid var(--line);
+  display: inline-block; text-align: center;
+}
+.contact-name { font-family: var(--serif); font-size: 1.25rem; margin: 0 0 .15rem; color: var(--ink); }
+.contact-role { font-size: .84rem; color: var(--dim); margin: 0 0 .6rem; letter-spacing: .01em; }
+.contact-links { margin: 0; font-size: .9rem; }
+.contact-links .sep { color: var(--line-2); margin: 0 .1rem; }

@@ -104,24 +104,42 @@
   <!-- ── bring your own film ───────────────────────────────────────── -->
   <section class="band" id="byo">
     <div class="wrap">
-      <p class="eyebrow">Try it on your own film</p>
-      <h2>Drop in a clip of yours and break that instead.</h2>
-      <p class="lede narrow">Everything below happens inside this page. Your file is read from your own disk, addressed and signed here, and never sent anywhere &mdash; which you can confirm in your browser's network tab before you pick it.</p>
+      <p class="eyebrow">Try it on your own work</p>
+      <h2>Seal a film or a photo, and send the code separately.</h2>
+      <p class="lede narrow">All of this runs inside this page. Your file is read from your own disk, encrypted and signed here, and never sent anywhere &mdash; you can confirm that in your browser&rsquo;s network tab before you pick it.</p>
 
-      <div class="byo-drop" id="byo-drop">
-        <label class="btn btn-primary" for="byo-file">Choose a clip</label>
-        <input id="byo-file" type="file" accept="video/*" hidden>
-        <p class="dim byo-hint">or drop one here &middot; mp4, mov or webm &middot; nothing is uploaded</p>
+      <div class="byo-cols">
+        <div class="byo-col">
+          <h3 class="byo-step"><span>1</span> Seal something</h3>
+          <div class="byo-drop" id="byo-drop">
+            <label class="btn btn-primary" for="byo-file">Choose a file</label>
+            <input id="byo-file" type="file" accept="video/*,image/*" hidden>
+            <p class="dim byo-hint">or drop one here<br>video &middot; mp4, mov, webm &nbsp;&nbsp; photo &middot; jpg, png, webp</p>
+          </div>
+        </div>
+        <div class="byo-col">
+          <h3 class="byo-step"><span>2</span> Open one you were sent</h3>
+          <div class="byo-drop" id="byo-open-drop">
+            <label class="btn" for="byo-open-file">Choose a .scrollcast file</label>
+            <input id="byo-open-file" type="file" accept=".scrollcast" hidden>
+            <div class="byo-open-row">
+              <input id="byo-open-code" class="mono" placeholder="32-character code" autocomplete="off" spellcheck="false">
+              <button class="btn" id="byo-open-go" type="button">Open</button>
+            </div>
+            <p class="byo-open-result" id="byo-open-result"></p>
+          </div>
+        </div>
       </div>
 
       <div class="stage byo-stage" id="byo-stage" hidden>
         <div class="stage-head">
-          <span class="stage-label" id="byo-name">your clip</span>
+          <span class="stage-label" id="byo-name">your file</span>
           <span class="sc-badge" id="byo-badge">reading…</span>
         </div>
 
-        <div class="screen">
-          <video id="byo-video" muted playsinline preload="metadata" aria-label="Your clip, verifying"></video>
+        <div class="screen" id="byo-media">
+          <video id="byo-video" muted playsinline preload="metadata" aria-label="Your file"></video>
+          <img id="byo-image" alt="Your photo" hidden>
           <div class="sc-halt" id="byo-halt">
             <p class="sc-halt-title">Playback stopped</p>
             <p class="sc-halt-seg" id="byo-halt-seg"></p>
@@ -146,18 +164,33 @@
           </div>
         </div>
 
+        <div class="byo-share" id="byo-share" hidden>
+          <a class="btn btn-primary" id="byo-download" download>Download the sealed file</a>
+          <div class="byo-code-row">
+            <label class="dim" for="byo-code">the code &mdash; send this separately</label>
+            <div class="byo-open-row">
+              <input id="byo-code" class="mono" readonly>
+              <button class="btn" id="byo-copy" type="button">copy</button>
+            </div>
+          </div>
+        </div>
+
         <p class="sc-credit mono" id="byo-progress"></p>
-        <p class="sc-note" id="byo-note">Your clip is addressed with the same code the packager uses, signed with a throwaway key generated in this tab, then verified back against that signature.</p>
+        <p class="sc-note" id="byo-note">Your file is encrypted and addressed with the same code the packager uses, signed with a throwaway key generated in this tab, then verified back the way a recipient would.</p>
       </div>
 
-      <div class="narrow" style="margin-top:2rem">
+      <div class="narrow" style="margin-top:2.2rem">
         <div class="limit">
-          <h3>What this panel is, exactly.</h3>
-          <p>It runs the addressing, signing and verification layer on your bytes. It does not transcode to CMAF &mdash; real packaging runs ffmpeg on a server &mdash; so here your file is split by byte range and played from local memory, and verification runs alongside playback rather than gating the decoder. The key is a throwaway for this tab, not a publisher identity.</p>
+          <h3>The file and the code travel apart. That part is real.</h3>
+          <p>Hand someone the sealed file however you like &mdash; AirDrop across a table, WeTransfer, a USB stick &mdash; and send the code by text. Without the code the container plays nothing: it is checked against <span class="mono">sha256(key)</span> before a single byte is decrypted, and every chunk is verified before it is decrypted rather than after.</p>
         </div>
         <div class="limit">
-          <h3>It cannot hand you a link to send.</h3>
-          <p>Sharing needs somewhere for the sealed bytes to live, and this is a static page with no server behind it. Issuing a link, a ticket, and the plays-and-expiry rules is what the hosted app does.</p>
+          <h3>Play counts, expiry and revocation are not in this page.</h3>
+          <p>A rule only binds at a gate the key must pass through, and a static page has no gate &mdash; anything counting plays here would be decoration, and we do not ship those. Those rules live in the hosted app, which holds the key and releases it one session at a time. Once you have a play, this page&rsquo;s code is permanent; that is the honest limit of sharing without a server.</p>
+        </div>
+        <div class="limit">
+          <h3>It does not transcode.</h3>
+          <p>Real packaging runs ffmpeg server-side into CMAF segments. Here the file is split by byte range, so verification runs alongside playback rather than gating the decoder, and the signing key is a throwaway for this tab rather than a publisher identity.</p>
         </div>
       </div>
     </div>

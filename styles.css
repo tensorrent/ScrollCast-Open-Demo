@@ -162,9 +162,11 @@ p  { margin: 0 0 1rem; }
   width: 100%; height: 100%; display: block; object-fit: cover;
 }
 .screen video { cursor: pointer; }
-.stage.is-noplayback video { display: none; }
-.screen img { display: none; }
-.stage.is-noplayback img { display: block; }
+/* The poster fallback belongs to the hero stage only — the bring-your-own
+   panel puts a real <img> in its screen and controls it with [hidden]. */
+#sc-stage.is-noplayback .screen video { display: none; }
+#sc-stage .screen img { display: none; }
+#sc-stage.is-noplayback .screen img { display: block; }
 
 .sc-halt {
   position: absolute; inset: 0; display: none;
@@ -329,3 +331,40 @@ th[scope="row"] { font-weight: 500; color: var(--ink); font-family: inherit; tex
 .byo-stage { margin-top: 1.4rem; }
 .byo-stage[hidden] { display: none; }
 #byo-progress { color: var(--dim); font-size: .74rem; }
+
+/* seal / open columns */
+.byo-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; margin-top: 2rem; }
+@media (max-width: 760px) { .byo-cols { grid-template-columns: 1fr; } }
+.byo-col { display: flex; flex-direction: column; }
+.byo-step {
+  font-family: var(--mono); font-size: .72rem; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--dim); margin: 0 0 .7rem;
+  display: flex; align-items: center; gap: .5rem;
+}
+.byo-step span {
+  width: 20px; height: 20px; border-radius: 50%; flex: none;
+  background: var(--brass); color: #17130a; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; font-size: .7rem;
+}
+.byo-col .byo-drop { flex: 1; margin-top: 0; }
+.byo-open-row { display: flex; gap: .5rem; margin-top: .9rem; justify-content: center; flex-wrap: wrap; }
+.byo-open-row input {
+  flex: 1 1 15rem; min-width: 0;
+  background: var(--bg); border: 1px solid var(--line-2); border-radius: 8px;
+  color: var(--ink); padding: .6rem .8rem; font-size: .86rem;
+}
+.byo-open-row input:focus { outline: 2px solid var(--brass); outline-offset: 1px; }
+.byo-open-result { margin: .9rem 0 0; font-size: .82rem; color: var(--dim); min-height: 1.2em; }
+.byo-open-result.is-ok { color: var(--ok); }
+.byo-open-result.is-bad { color: var(--fail); }
+
+.byo-share {
+  display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap;
+  padding: 1rem 1.1rem; border-top: 1px solid var(--line);
+}
+.byo-share[hidden] { display: none; }
+.byo-code-row { flex: 1 1 20rem; }
+.byo-code-row label { display: block; font-size: .76rem; margin-bottom: .1rem; }
+.byo-code-row .byo-open-row { margin-top: .35rem; justify-content: flex-start; }
+.screen img[hidden], .screen video[hidden] { display: none; }
+.screen img { object-fit: contain; background: #000; }

@@ -44,7 +44,11 @@
   // the strip fills at the pace of playback instead of completing in a blink.
   var AHEAD_SEGMENTS = 3;
   // Pace when there is no playhead to follow (no MSE, or autoplay blocked).
-  var FALLBACK_PACE_MS = 900;
+  // Scaled so the strip fills in about this long regardless of how many
+  // segments the film has — a fixed per-segment delay turns a long ladder into
+  // a minute of watching nothing in particular.
+  var FALLBACK_FILL_MS = 20000;
+  var FALLBACK_PACE_MS = 900;   // recomputed once the segment count is known
   // A SourceBuffer that never fires updateend must not wedge the pump.
   var APPEND_TIMEOUT_MS = 8000;
   // If MSE has produced nothing at all by now, stop trusting it and run the
@@ -198,8 +202,17 @@
   }
 
   // ── the run ──────────────────────────────────────────────────────────────
-  async function fetchBytes(uri) {
-    var res = await fetch(BASE + uri, { cache: "force-cache" });
+  // Media is content-addressed: the sha256 the signed manifest names for a
+  // segment goes into its URL, so a cached response can only ever be the bytes
+  // that entry describes and `force-cache` is correct rather than merely fast.
+  //
+  // Without this the paths are stable across rebuilds, and a returning visitor
+  // replays the PREVIOUS deployment's segments out of disk cache — which looks
+  // exactly like the page serving different footage than the one it published.
+  async function fetchBytes(uri, version) {
+    var url = BASE + uri;
+    if (version) url += (uri.indexOf("?") < 0 ? "?v=" : "&v=") + version.slice(0, 16);
+    var res = await fetch(url, { cache: version ? "force-cache" : "no-cache" });
     if (!res.ok) throw new Error("fetch " + uri + " -> " + res.status);
     return new Uint8Array(await res.arrayBuffer());
   }
@@ -231,7 +244,7 @@
   }
 
   async function verifyOne(entry, i, myRun) {
-    var bytes = await fetchBytes(entry.uri);
+    var bytes = await fetchBytes(entry.uri, entry.sha256);
     if (myRun !== run) return false;
 
     var tampered = false;
@@ -289,7 +302,9 @@
 
     var raw;
     try {
-      raw = await (await fetch(BASE + "scrollcast.json", { cache: "force-cache" })).json();
+      // The manifest is the one file whose URL cannot carry its own hash, so it
+      // must be revalidated; everything else keys off what it says.
+      raw = await (await fetch(BASE + "scrollcast.json", { cache: "no-cache" })).json();
       manifest = SC.normalizeManifest(raw);
     } catch (e) {
       setBadge("demo unavailable", "halt");
@@ -316,6 +331,7 @@
     rendition = manifest.renditions[0];
     segs = rendition.segments;
     buildStrip(segs.length);
+    FALLBACK_PACE_MS = Math.max(150, Math.min(900, Math.round(FALLBACK_FILL_MS / Math.max(1, segs.length))));
 
     // 2. MSE is the real article: only verified bytes are ever appended, so a
     //    rejected segment simply never reaches the decoder. Where MSE is
@@ -334,7 +350,7 @@
 
     try {
       if (mseMode) {
-        var initBytes = await fetchBytes(rendition.init.uri);
+        var initBytes = await fetchBytes(rendition.init.uri, rendition.init.sha256);
         if (myRun !== run) return;
         if (!SC.verifySegment(initBytes, rendition.init).ok) {
           setBadge("init rejected", "halt");

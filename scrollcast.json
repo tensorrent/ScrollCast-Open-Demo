@@ -2,7 +2,7 @@
   "format": "scrollcast",
   "version": 2,
   "title": "SCROLLCAST sample stream",
-  "createdAt": "2026-08-27T18:37:52.203Z",
+  "createdAt": "2026-08-28T00:16:47.626Z",
   "renditions": [
     {
       "id": "main",
@@ -14,92 +14,110 @@
       "init": {
         "index": 0,
         "uri": "media/main/init.mp4",
-        "bytes": 1366,
+        "bytes": 1135,
         "durationSec": 0,
-        "root": "8e5516db4b7f709d",
-        "sha256": "f56fa884fb00d458a4bcf960e560994d2c820e06899d5019000ca34dd162280e",
-        "blocks": 7
+        "root": "70211557dc7a70fb",
+        "sha256": "c9c0a8dedc48fced204120cb68f244bfb38f1058edd4341980c2f05f0a029774",
+        "blocks": 6
       },
       "segments": [
         {
           "index": 0,
           "uri": "media/main/seg000.m4s",
-          "bytes": 217743,
+          "bytes": 138759,
           "durationSec": 2,
-          "root": "8e09c7d4b8793641",
-          "sha256": "0d244874082f389bf27a1375c7f8529b0de08cf7edc102840250887ee58ebba7",
-          "blocks": 1009
+          "root": "9fb929a8945b865d",
+          "sha256": "4fe611104ba7c9b9be8541b3dadd9b55f80b8fbc0b42991e3b0709b81dad60d8",
+          "blocks": 643
         },
         {
           "index": 1,
           "uri": "media/main/seg001.m4s",
-          "bytes": 210745,
+          "bytes": 177173,
           "durationSec": 2,
-          "root": "a4d21637b338de3b",
-          "sha256": "60cd42f21abda9fefce63022197b42974026dd97b404741117aea759c4e1e77c",
-          "blocks": 976
+          "root": "e5c5c0d9fb9b2aa4",
+          "sha256": "3c4a7ffb33bfe1d57076100754d2b8484acf7536099d7e43c80e743a3c93f30e",
+          "blocks": 821
         },
         {
           "index": 2,
           "uri": "media/main/seg002.m4s",
-          "bytes": 192913,
+          "bytes": 186258,
           "durationSec": 2,
-          "root": "06a68a175777d9ba",
-          "sha256": "74979524f0c6453ec056ac6ec3a95142464b08df427843b47c82225718c11edc",
-          "blocks": 894
+          "root": "cfd9799dbb3d4e0a",
+          "sha256": "44b08a2953b8d6339fc14101fa85dee250e3bc5ce603782ec313c14e58254d81",
+          "blocks": 863
         },
         {
           "index": 3,
           "uri": "media/main/seg003.m4s",
-          "bytes": 178014,
+          "bytes": 185923,
           "durationSec": 2,
-          "root": "02bfcc43c8394e70",
-          "sha256": "cc368bd1f0c95f8ab32b74bcb6a0dcb708d8e3bf248834653ed3fd9ac9f84414",
-          "blocks": 825
+          "root": "018f3f2ca4acf9ea",
+          "sha256": "1f7b0ab566e6777755080e350648c1a04033142535af15e10b0af13834db0f05",
+          "blocks": 861
         },
         {
           "index": 4,
           "uri": "media/main/seg004.m4s",
-          "bytes": 194738,
+          "bytes": 171730,
           "durationSec": 2,
-          "root": "6385069a76a698d7",
-          "sha256": "50b13983c606988c49fbb4eefe2da5d22b786edfdeac341b8a425fdcc9392e5e",
-          "blocks": 902
+          "root": "64191f8ce05163a4",
+          "sha256": "4c6f73bd2eeb6f3a826e5c586f436078fca0284997abf01dc8049e9669e516ed",
+          "blocks": 796
         },
         {
           "index": 5,
           "uri": "media/main/seg005.m4s",
-          "bytes": 220803,
+          "bytes": 189782,
           "durationSec": 2,
-          "root": "15a2b347860ad89f",
-          "sha256": "5b2a84255f62a047fa2403778b1532f174c1a6a53dc3ebf32573962148894edc",
-          "blocks": 1023
+          "root": "cedabbee71390d5c",
+          "sha256": "b0ba157672e155853bf94b141d3eaacf8bd7c97874d1a9a7f9159edacad2daf3",
+          "blocks": 879
         },
         {
           "index": 6,
           "uri": "media/main/seg006.m4s",
-          "bytes": 243229,
+          "bytes": 186366,
           "durationSec": 2,
-          "root": "c347bb1214bede72",
-          "sha256": "ff5e2d9cc4e3fcbc9cfcf1537f61785742e01bb4b408b618870a03dc47b4f1ca",
-          "blocks": 1127
+          "root": "4e7e39b5e4a48480",
+          "sha256": "b92837306cd591282b0e9322f5c8869aa84e35ca995a4c7d3f47287675ef386c",
+          "blocks": 863
         },
         {
           "index": 7,
           "uri": "media/main/seg007.m4s",
-          "bytes": 242097,
+          "bytes": 186763,
           "durationSec": 2,
-          "root": "7f609bd394ab00ca",
-          "sha256": "ca72b263dd8e97e17e4bc63098fd59229c2fdfb1d867530ac1f979021d6ff979",
-          "blocks": 1121
+          "root": "c89e9cd9146b43fc",
+          "sha256": "77af938e11e05abeb936b421fe5d0e5915000bce8450a88bf6ef16f697bc71aa",
+          "blocks": 865
+        },
+        {
+          "index": 8,
+          "uri": "media/main/seg008.m4s",
+          "bytes": 185039,
+          "durationSec": 2,
+          "root": "94bb026f53f32125",
+          "sha256": "3b2e176f8147fb04b6e97f9c5afce2626e681b0635e8143812f32fa081377662",
+          "blocks": 857
+        },
+        {
+          "index": 9,
+          "uri": "media/main/seg009.m4s",
+          "bytes": 170350,
+          "durationSec": 2,
+          "root": "2211c852671c0296",
+          "sha256": "0433746a34b330d529a8b5a3870ca3d40c5d27f89f51f2881257df90dc89d1fb",
+          "blocks": 789
         }
       ]
     }
   ],
   "totals": {
-    "bytes": 1701648,
-    "blocks": 7884,
-    "durationSec": 16
+    "bytes": 1779278,
+    "blocks": 8243,
+    "durationSec": 20
   },
   "provenance": {
     "c2pa": "c2pa.json"
@@ -107,6 +125,6 @@
   "signature": {
     "alg": "ed25519",
     "publicKey": "29bf58bbe755bc91e1a434b77826972201f2aae2ee33313f5722fa9c6e4c89e4",
-    "sig": "8786c9c59d27ba528cda28e05175c132c15aa4b565f18f615b9dda05ec2710267ceb520effbea7c0eb5837099613518e0b2d1758f2f0cc9c917cb2c887d6e801"
+    "sig": "8d951723fe58d6ad447b3a2113bf30532e5d2d30eff9bd73f7a2b5e7193f4899ad82f91bc4f376e3816b812f192ea45de94d505dc315302b695d4c9266c2db08"
   }
 }

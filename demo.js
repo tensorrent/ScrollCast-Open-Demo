@@ -45,6 +45,12 @@
   var AHEAD_SEGMENTS = 3;
   // Pace when there is no playhead to follow (no MSE, or autoplay blocked).
   var FALLBACK_PACE_MS = 900;
+  // A SourceBuffer that never fires updateend must not wedge the pump.
+  var APPEND_TIMEOUT_MS = 8000;
+  // If MSE has produced nothing at all by now, stop trusting it and run the
+  // verification against the still frame instead. This page is sent cold to
+  // people on browsers nobody here can test; it must never sit at zero.
+  var MSE_WATCHDOG_MS = 9000;
 
   var DEFAULT_NOTE = el.note ? el.note.textContent : "";
 
@@ -60,6 +66,7 @@
   var totals = { segs: 0, blocks: 0, bytes: 0 };
   var cells = [];
   var ms = null, sourceBuffer = null, mseMode = false;
+  var forceNoPlayback = false;   // set by the watchdog after MSE fails to deliver
 
   var MediaSourceCtor = window.ManagedMediaSource || window.MediaSource || null;
 
@@ -134,6 +141,7 @@
 
   // ── media pipeline ───────────────────────────────────────────────────────
   function canUseMse(mimeCodec) {
+    if (forceNoPlayback) return false;
     if (!MediaSourceCtor) return false;
     try { return MediaSourceCtor.isTypeSupported(mimeCodec); } catch (e) { return false; }
   }
@@ -141,6 +149,9 @@
   function openMediaSource(mimeCodec) {
     return new Promise(function (resolve, reject) {
       ms = new MediaSourceCtor();
+      // ManagedMediaSource (Safari 17+, iOS) requires this on the element it
+      // is attached to; harmless for plain MediaSource.
+      try { el.video.disableRemotePlayback = true; } catch (e) { /* older engines */ }
       el.video.src = URL.createObjectURL(ms);
       var to = setTimeout(function () { reject(new Error("MediaSource open timed out")); }, 5000);
       ms.addEventListener("sourceopen", function () {
@@ -159,9 +170,14 @@
   function appendBuffer(bytes) {
     return new Promise(function (resolve, reject) {
       if (!sourceBuffer) return resolve();
+      var timer = setTimeout(function () {
+        cleanup();
+        reject(new Error("SourceBuffer append timed out"));
+      }, APPEND_TIMEOUT_MS);
       var done = function () { cleanup(); resolve(); };
       var fail = function (e) { cleanup(); reject(e instanceof Error ? e : new Error("append failed")); };
       var cleanup = function () {
+        clearTimeout(timer);
         sourceBuffer.removeEventListener("updateend", done);
         sourceBuffer.removeEventListener("error", fail);
       };
@@ -246,6 +262,17 @@
     return true;
   }
 
+  // Nothing verified after MSE_WATCHDOG_MS means the decoder path is wedged on
+  // an engine we could not test. Give up on it and restart without playback so
+  // the verification — the actual point of the demo — still runs.
+  function armWatchdog(myRun) {
+    setTimeout(function () {
+      if (myRun !== run || phase !== "running" || totals.segs > 0) return;
+      forceNoPlayback = true;
+      start();
+    }, MSE_WATCHDOG_MS);
+  }
+
   async function start(tamperAtIndex) {
     var myRun = ++run;
     phase = "running";
@@ -298,6 +325,7 @@
       try { await openMediaSource(rendition.mimeCodec); }
       catch (e) { mseMode = false; }
     }
+    if (mseMode) armWatchdog(myRun);
     if (!mseMode) {
       el.stage.classList.add("is-noplayback");
       setNote("This browser will not stream through MediaSource, so the picture is a still frame. The verification below is running for real on the same signed segments.");
@@ -314,7 +342,11 @@
           return;
         }
         await appendBuffer(initBytes);
-        try { await el.video.play(); } catch (e) { /* autoplay policy; controls still work */ }
+        // Deliberately NOT awaited. WebKit leaves the play() promise pending
+        // while the element has no playable data, and the only thing that can
+        // supply that data is the loop below — so awaiting it here deadlocks
+        // the demo at zero segments on Safari. Start playback and move on.
+        el.video.play().catch(function () { /* autoplay refused; the pump copes */ });
       }
 
       for (var i = 0; i < segs.length; i++) {
@@ -358,6 +390,7 @@
 
   el.restart.addEventListener("click", function () {
     setNote(DEFAULT_NOTE);
+    forceNoPlayback = false;   // give the decoder another chance on an explicit retry
     start();
   });
 

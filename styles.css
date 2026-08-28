@@ -298,3 +298,9 @@ th[scope="row"] { font-weight: 500; color: var(--ink); font-family: inherit; tex
 }
 .site-foot .wrap { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .site-foot .fingerprint { font-family: var(--mono); font-size: .74rem; }
+
+.sc-credit {
+  padding: 0 1.1rem .2rem; margin: 0;
+  font-size: .74rem; color: var(--dim); opacity: .8;
+}
+.sc-credit em { font-style: italic; }

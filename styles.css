@@ -315,3 +315,17 @@ th[scope="row"] { font-weight: 500; color: var(--ink); font-family: inherit; tex
 .contact-role { font-size: .84rem; color: var(--dim); margin: 0 0 .6rem; letter-spacing: .01em; }
 .contact-links { margin: 0; font-size: .9rem; }
 .contact-links .sep { color: var(--line-2); margin: 0 .1rem; }
+
+/* ── bring your own film ────────────────────────────────────────────── */
+.byo-drop {
+  margin-top: 2rem; padding: clamp(1.6rem, 4vw, 2.4rem);
+  border: 1px dashed var(--line-2); border-radius: var(--radius);
+  background: var(--surface); text-align: center;
+  transition: border-color .15s ease, background .15s ease;
+}
+.byo-drop.is-over { border-color: var(--brass); background: var(--raised); }
+.byo-drop label { cursor: pointer; }
+.byo-hint { margin: .9rem 0 0; font-size: .86rem; }
+.byo-stage { margin-top: 1.4rem; }
+.byo-stage[hidden] { display: none; }
+#byo-progress { color: var(--dim); font-size: .74rem; }

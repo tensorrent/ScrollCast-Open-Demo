@@ -34,6 +34,7 @@
     <a class="brand" href="#top">SCROLL<b>CAST</b></a>
     <nav class="site-nav">
       <a href="#demo">Demo</a>
+      <a href="#byo">Your film</a>
       <a href="#problem">The problem</a>
       <a href="#how">How it works</a>
       <a href="#fit">Where it fits</a>
@@ -96,6 +97,68 @@
 
         <p class="sc-credit">Sample clip: <em>Big Buck Bunny</em> &copy; 2008 Blender Foundation, <a href="https://creativecommons.org/licenses/by/3.0/" rel="license noopener" target="_blank">CC&nbsp;BY&nbsp;3.0</a> &mdash; packaged and signed here by SCROLLCAST.</p>
         <p class="sc-note" id="sc-note">This is not a mockup. The page fetched a signed manifest, checked its Ed25519 signature against a publisher key compiled into the script, and is re-deriving every segment's address from the bytes that actually arrived before any of them reach the decoder.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── bring your own film ───────────────────────────────────────── -->
+  <section class="band" id="byo">
+    <div class="wrap">
+      <p class="eyebrow">Try it on your own film</p>
+      <h2>Drop in a clip of yours and break that instead.</h2>
+      <p class="lede narrow">Everything below happens inside this page. Your file is read from your own disk, addressed and signed here, and never sent anywhere &mdash; which you can confirm in your browser's network tab before you pick it.</p>
+
+      <div class="byo-drop" id="byo-drop">
+        <label class="btn btn-primary" for="byo-file">Choose a clip</label>
+        <input id="byo-file" type="file" accept="video/*" hidden>
+        <p class="dim byo-hint">or drop one here &middot; mp4, mov or webm &middot; nothing is uploaded</p>
+      </div>
+
+      <div class="stage byo-stage" id="byo-stage" hidden>
+        <div class="stage-head">
+          <span class="stage-label" id="byo-name">your clip</span>
+          <span class="sc-badge" id="byo-badge">reading…</span>
+        </div>
+
+        <div class="screen">
+          <video id="byo-video" muted playsinline preload="metadata" aria-label="Your clip, verifying"></video>
+          <div class="sc-halt" id="byo-halt">
+            <p class="sc-halt-title">Playback stopped</p>
+            <p class="sc-halt-seg" id="byo-halt-seg"></p>
+            <div class="sc-halt-rows">
+              <div><span>your signed manifest says</span><span class="mono v-expect" id="byo-halt-expect"></span></div>
+              <div><span>these bytes derive</span><span class="mono v-got" id="byo-halt-got"></span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sc-strip" id="byo-strip" aria-hidden="true"></div>
+
+        <div class="stage-foot">
+          <div class="sc-stats">
+            <span><b id="byo-stat-chunks">0</b> chunks verified</span>
+            <span><b id="byo-stat-blocks">0</b> blocks re-derived</span>
+            <span><b id="byo-stat-bytes">0.00</b> MiB</span>
+          </div>
+          <div class="stage-actions">
+            <button class="btn" id="byo-tamper" type="button" disabled>Change one byte</button>
+            <button class="btn" id="byo-reset" type="button">Clear</button>
+          </div>
+        </div>
+
+        <p class="sc-credit mono" id="byo-progress"></p>
+        <p class="sc-note" id="byo-note">Your clip is addressed with the same code the packager uses, signed with a throwaway key generated in this tab, then verified back against that signature.</p>
+      </div>
+
+      <div class="narrow" style="margin-top:2rem">
+        <div class="limit">
+          <h3>What this panel is, exactly.</h3>
+          <p>It runs the addressing, signing and verification layer on your bytes. It does not transcode to CMAF &mdash; real packaging runs ffmpeg on a server &mdash; so here your file is split by byte range and played from local memory, and verification runs alongside playback rather than gating the decoder. The key is a throwaway for this tab, not a publisher identity.</p>
+        </div>
+        <div class="limit">
+          <h3>It cannot hand you a link to send.</h3>
+          <p>Sharing needs somewhere for the sealed bytes to live, and this is a static page with no server behind it. Issuing a link, a ticket, and the plays-and-expiry rules is what the hosted app does.</p>
+        </div>
       </div>
     </div>
   </section>
@@ -319,5 +382,6 @@
 
 <script src="scrollcast-verify.js"></script>
 <script src="demo.js" data-base=""></script>
+<script src="byo.js"></script>
 </body>
 </html>

@@ -57,6 +57,7 @@
 
   var MAGIC = "SCRLCST1";
   var MAX_BYTES = 24 * 1024 * 1024;
+  var MAX_HEADER_BYTES = 256 * 1024;
   var TARGET_CHUNKS = 24;
   var MIN_CHUNK = 256 * 1024;
 
@@ -220,19 +221,59 @@
     return new Blob(parts, { type: "application/octet-stream" });
   }
   async function readContainer(f) {
+    if (f.size < 13 || f.size > MAX_BYTES + MAX_HEADER_BYTES + 12) throw new Error("Choose a complete .scrollcast file with up to 24 MiB of media.");
     var head = new Uint8Array(await f.slice(0, 12).arrayBuffer());
     if (new TextDecoder().decode(head.subarray(0, 8)) !== MAGIC) {
       throw new Error("that is not a sealed SCROLLCAST file");
     }
     var headerLen = new DataView(head.buffer, head.byteOffset).getUint32(8, false);
+    if (!headerLen || headerLen > MAX_HEADER_BYTES || 12 + headerLen >= f.size) throw new Error("This container has an invalid header or is incomplete.");
     var headerBytes = await f.slice(12, 12 + headerLen).arrayBuffer();
     var header = JSON.parse(new TextDecoder().decode(headerBytes));
+    if (!header || header.format !== "scrollcast-sealed" || header.version !== 1 || !["image", "video"].includes(header.kind)) throw new Error("Unsupported sealed-file format.");
+    if (typeof header.title !== "string" || typeof header.mime !== "string" || !Array.isArray(header.segments) || !header.segments.length || header.segments.length > 128) throw new Error("Invalid sealed-file manifest.");
+    var encryption = header.encryption || {};
+    if (encryption.scheme !== "aes-ctr-fullseg" || !/^[0-9a-f]{64}$/i.test(encryption.keyId || "") || !/^[0-9a-f]{32}$/i.test(encryption.iv || "")) throw new Error("Invalid encryption information.");
+    var total = 0;
+    header.segments.forEach(function (entry, index) {
+      if (!entry || entry.index !== index || !Number.isSafeInteger(entry.bytes) || entry.bytes <= 0 || entry.bytes > MAX_BYTES) throw new Error("Invalid media chunk.");
+      total += entry.bytes;
+      if (total > MAX_BYTES) throw new Error("This file exceeds the browser demo's 24 MiB limit.");
+    });
+    if (total !== header.coveredBytes || total !== header.totalBytes || 12 + headerLen + total !== f.size) throw new Error("This sealed file is incomplete. Seal a complete file of 24 MiB or less.");
+    if (header.access) {
+      var rule = header.access.rule;
+      if (!rule || !["count", "until", "forever"].includes(rule.kind) || !["play", "share", "edit"].includes(header.access.role)) throw new Error("Invalid viewing terms.");
+      if (rule.kind === "count" && (!Number.isSafeInteger(rule.max) || rule.max < 1)) throw new Error("Invalid viewing count.");
+      if (rule.kind === "until" && !Number.isFinite(Date.parse(rule.until))) throw new Error("Invalid viewing window.");
+    }
     return { header, base: 12 + headerLen };
+  }
+
+  function setBusy(busy) {
+    el.input.disabled = busy; el.openInput.disabled = busy; el.openGo.disabled = busy;
+    [el.ruleChips, el.roleChips].forEach(function (group) {
+      if (group) group.querySelectorAll(".byo-chip").forEach(function (chip) { chip.disabled = busy; });
+    });
+    el.panel.setAttribute("aria-busy", String(busy));
+  }
+
+  function clearPreview() {
+    releaseUrls();
+    try { el.video.pause(); el.video.removeAttribute("src"); el.video.load(); } catch (e) {}
+    el.image.removeAttribute("src"); el.image.hidden = true;
+    el.halt.classList.remove("is-shown");
+    el.share.hidden = true; el.code.value = ""; el.download.removeAttribute("href");
+    if (el.openSave) { el.openSave.hidden = true; el.openSave.removeAttribute("href"); }
+    el.tamper.disabled = true;
   }
 
   // ── seal ─────────────────────────────────────────────────────────────────
   async function seal(chosen, tamperAtIndex) {
     var myRun = ++run;
+    setBusy(true);
+    clearPreview();
+    incoming = null;
     file = chosen;
     var kind = kindOf(file);
     phase = "sealing"; armAt = -1; nextIndex = 0;
@@ -245,7 +286,7 @@
     el.name.textContent = file.name;
     setNote(DEFAULT_NOTE);
 
-    var covered = Math.min(file.size, MAX_BYTES);
+    var covered = file.size;
     var chunkSize = Math.max(MIN_CHUNK, Math.ceil(covered / TARGET_CHUNKS));
     chunks = [];
     for (var off = 0; off < covered; off += chunkSize) {
@@ -261,7 +302,9 @@
     for (var i = 0; i < chunks.length; i++) {
       if (myRun !== run) return;
       var plain = new Uint8Array(await file.slice(chunks[i].start, chunks[i].start + chunks[i].bytes).arrayBuffer());
+      if (myRun !== run) return;
       var ct = await crypt(plain, keyHex, ivHex, i, "encrypt");
+      if (myRun !== run) return;
       // Address the CIPHERTEXT: the player verifies what arrived on the wire
       // and decrypts only what verified, so the address must cover the same
       // bytes it will later re-derive.
@@ -293,24 +336,20 @@
     }, kp.privateKey);
 
     if (!SC.verifyManifestWith(header, kp.publicKey).valid) {
-      setBadge("signature invalid", "halt");
-      setNote("The manifest this page produced did not verify, which should be impossible. Nothing was sealed.");
-      return;
+      throw new Error("The new manifest did not verify. Nothing was sealed.");
     }
 
     sealed = { header: header, blob: packContainer(header, payloads), keyHex: keyHex, payloads: payloads };
 
     setBadge("sealed · " + kp.publicKey.slice(0, 12) + "…", "ok");
-    el.progress.textContent =
-      (covered < file.size ? "sealed the first " + mib(covered) + " MiB of " + mib(file.size) + " MiB"
-                           : "sealed all " + mib(covered) + " MiB")
-      + " in " + chunks.length + " chunks";
+    el.progress.textContent = "sealed all " + mib(covered) + " MiB in " + chunks.length + " chunks";
 
     el.download.href = trackUrl(URL.createObjectURL(sealed.blob));
     el.download.download = file.name.replace(/\.[^.]+$/, "") + ".scrollcast";
     el.code.value = keyHex;
     if (el.shareRule) el.shareRule.textContent = describeAccess(access);
     el.share.hidden = false;
+    setBusy(false);
     // The code used to render below a full-size player, off the bottom of the
     // screen, so people reported that sealing never gave them one. Put it in
     // front of them.
@@ -366,7 +405,7 @@
     }
     el.halt.classList.add("is-shown");
     el.tamper.disabled = true;
-    setNote("That is your own sealed file failing its own signature — one byte changed, and the address it derives no longer matches the one that was signed.");
+    setNote("One byte changed. Its address no longer matches the signed manifest, so the verification stopped.");
   }
 
   // ── open ─────────────────────────────────────────────────────────────────
@@ -378,99 +417,106 @@
 
   async function chooseSealed(f) {
     if (!f) return;
+    var myRun = ++run;
+    incoming = null; file = null; phase = "selecting";
+    clearPreview(); el.stage.hidden = true; setBusy(true);
+    if (el.openTerms) el.openTerms.hidden = true;
     try {
-      incoming = { file: f, ...(await readContainer(f)) };
+      var parsed = await readContainer(f);
+      if (myRun !== run) return;
+      var v = SC.verifyManifestWith(parsed.header, (parsed.header.signature || {}).publicKey || "");
+      if (!v.valid) throw new Error("This container's signature does not verify. It has been altered.");
+      incoming = { file: f, header: parsed.header, base: parsed.base };
+      if (el.openTerms) {
+        el.openTerms.textContent = "terms: " + describeAccess(parsed.header.access);
+        el.openTerms.hidden = false;
+      }
+      phase = "ready";
+      openStatus(parsed.header.title + " · " + parsed.header.segments.length + " chunks · enter the code to open it", null);
     } catch (e) {
-      incoming = null;
-      openStatus(e.message, "bad");
-      return;
+      if (myRun !== run) return;
+      incoming = null; phase = "idle";
+      openStatus(e.message || "Could not read this sealed file.", "bad");
+    } finally {
+      if (myRun === run) setBusy(false);
     }
-    var v = SC.verifyManifestWith(incoming.header, (incoming.header.signature || {}).publicKey || "");
-    if (!v.valid) {
-      incoming = null;
-      if (el.openTerms) el.openTerms.hidden = true;
-      return openStatus("this container's signature does not verify — it has been altered", "bad");
-    }
-    // The terms verified along with everything else, so they are safe to show
-    // before a code is entered.
-    if (el.openTerms) {
-      var acc = incoming.header.access;
-      el.openTerms.textContent = acc ? "terms: " + describeAccess(acc) : "terms: none — sealed before terms existed";
-      el.openTerms.hidden = false;
-    }
-    if (el.openSave) el.openSave.hidden = true;
-    openStatus(incoming.header.title + " · " + incoming.header.segments.length + " chunks · enter the code to open it", null);
   }
 
   async function openSealed() {
+    if (phase === "opening" || phase === "sealing" || phase === "selecting") return;
     if (!incoming) return openStatus("choose a .scrollcast file first", "bad");
     var code = (el.openCode.value || "").trim().toLowerCase();
     if (!/^[0-9a-f]{32}$/.test(code)) return openStatus("a code is 32 hex characters", "bad");
-
-    // The commitment check happens BEFORE any decryption. A wrong code never
-    // gets to feed garbage into a decoder.
-    if (SC.keyCommitment(code) !== incoming.header.encryption.keyId) {
-      return openStatus("wrong code — nothing was decrypted", "bad");
-    }
-
-    // Terms are checked after the code, so a stranger holding the file but not
-    // the code learns nothing about them, and still before any decryption.
+    if (SC.keyCommitment(code) !== incoming.header.encryption.keyId) return openStatus("wrong code — nothing was decrypted", "bad");
     var refusal = refuseReason(incoming.header);
     if (refusal) return openStatus(refusal, "bad");
 
-    openStatus("code accepted · verifying…", "ok");
-    var segs = incoming.header.segments;
-    var offset = incoming.base;
-    var plainParts = [];
-    for (var i = 0; i < segs.length; i++) {
-      var ct = new Uint8Array(await incoming.file.slice(offset, offset + segs[i].bytes).arrayBuffer());
-      offset += segs[i].bytes;
-      var res = SC.verifySegment(ct, segs[i]);
-      if (!res.ok) return openStatus("chunk " + (i + 1) + " failed verification — the file has been altered, nothing was decrypted", "bad");
-      plainParts.push(await crypt(ct, code, incoming.header.encryption.iv, i, "decrypt"));
-      openStatus("verified and decrypted " + (i + 1) + " / " + segs.length, "ok");
-      await sleep(0);
+    var myRun = ++run, current = incoming;
+    phase = "opening"; setBusy(true); clearPreview(); el.stage.hidden = true;
+    try {
+      openStatus("code accepted · verifying…", "ok");
+      var segs = current.header.segments, offset = current.base, plainParts = [];
+      for (var i = 0; i < segs.length; i++) {
+        var ct = new Uint8Array(await current.file.slice(offset, offset + segs[i].bytes).arrayBuffer());
+        if (myRun !== run) return;
+        offset += segs[i].bytes;
+        var res = SC.verifySegment(ct, segs[i]);
+        if (!res.ok) throw new Error("Chunk " + (i + 1) + " failed verification. The file was not opened.");
+        plainParts.push(await crypt(ct, code, current.header.encryption.iv, i, "decrypt"));
+        if (myRun !== run) return;
+        openStatus("verified and decrypted " + (i + 1) + " / " + segs.length, "ok");
+        await sleep(0);
+      }
+      if (myRun !== run) return;
+      var blob = new Blob(plainParts, { type: current.header.mime || "application/octet-stream" });
+      var url = trackUrl(URL.createObjectURL(blob));
+      el.stage.hidden = false; el.name.textContent = current.header.title;
+      buildStrip(segs.length);
+      for (var k = 0; k < segs.length; k++) paintCell(k, segs[k].root, false);
+      totals = { chunks: segs.length, blocks: segs.reduce(function (a,s) { return a+s.blocks; },0), bytes: current.header.totalBytes };
+      paintStats(); noteOpen(current.header.encryption.keyId);
+      var acc2 = current.header.access || {};
+      setBadge("opened · every byte verified", "ok");
+      el.progress.textContent = "opened from a sealed container with the code";
+      showMedia(current.header.kind === "image" ? "image" : "video", url);
+      if (el.openSave) {
+        el.openSave.hidden = acc2.role !== "edit";
+        if (acc2.role === "edit") { el.openSave.href = url; el.openSave.download = current.header.title; }
+      }
+      setNote("Every chunk verified and decrypted before the file was opened. Browser viewing terms are not server-enforced tickets.");
+      openStatus("opened — every chunk verified before it was decrypted" + (acc2.role ? " · " + ROLE_LABEL[acc2.role] : ""), "ok");
+      el.stage.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (e) {
+      if (myRun === run) openStatus(e.message || "Could not open this file. Try selecting it again.", "bad");
+    } finally {
+      if (myRun === run) { phase = "ready"; setBusy(false); }
     }
-
-    var blob = new Blob(plainParts, { type: incoming.header.mime || "application/octet-stream" });
-    var url = trackUrl(URL.createObjectURL(blob));
-    el.stage.hidden = false;
-    el.name.textContent = incoming.header.title;
-    buildStrip(segs.length);
-    for (var k = 0; k < segs.length; k++) paintCell(k, segs[k].root, false);
-    totals = { chunks: segs.length, blocks: segs.reduce(function (a, s) { return a + s.blocks; }, 0),
-               bytes: segs.reduce(function (a, s) { return a + s.bytes; }, 0) };
-    paintStats();
-    noteOpen(incoming.header.encryption.keyId);
-
-    var acc2 = incoming.header.access || {};
-    setBadge("opened · every byte verified", "ok");
-    el.progress.textContent = "opened from a sealed container with the code";
-    showMedia(incoming.header.kind === "image" ? "image" : "video", url);
-
-    // The role decides what the page offers. Someone determined can still reach
-    // the decoded blob through devtools — this is what the role means in the
-    // interface, not a claim about what it prevents.
-    if (el.openSave) {
-      var mayKeep = acc2.role === "edit";
-      el.openSave.hidden = !mayKeep;
-      if (mayKeep) { el.openSave.href = url; el.openSave.download = incoming.header.title || "original"; }
-    }
-    openStatus("opened — every chunk verified before it was decrypted"
-      + (acc2.role ? " · " + (ROLE_LABEL[acc2.role] || "play only") : ""), "ok");
   }
 
   // ── controls ─────────────────────────────────────────────────────────────
   function choose(f) {
     if (!f) return;
-    if (!kindOf(f)) {
+    if (phase === "sealing" || phase === "opening" || phase === "selecting") return;
+    if (!f.size || f.size > MAX_BYTES || !kindOf(f)) {
+      run++; phase = "idle"; file = null; incoming = null; clearPreview();
+
       el.stage.hidden = false;
-      setBadge("unsupported file", "halt");
-      setNote("That is not a video or photo this page can read. Try an mp4, mov, webm, jpg, png or webp.");
+      setBadge(f.size > MAX_BYTES ? "file too large" : "unsupported file", "halt");
+      setNote(f.size > MAX_BYTES ? "Choose a complete clip or photo up to 24 MiB. Nothing was sealed or truncated." : "Choose a non-empty video or photo your browser can play.");
       return;
     }
     el.tamper.textContent = "Change one byte";
-    seal(f);
+    launchSeal(f);
+  }
+
+  function launchSeal(f, tamperIndex) {
+    var expected = run + 1;
+    seal(f, tamperIndex).catch(function (error) {
+      if (run !== expected) return;
+      phase = "idle"; setBusy(false); el.tamper.disabled = true;
+      setBadge("could not seal file", "halt");
+      setNote(error.message || "Sealing failed. Try a smaller clip or another browser.");
+    });
   }
 
   // Terms are chosen before sealing because they are signed into the manifest.
@@ -481,13 +527,25 @@
     if (!group) return;
     group.addEventListener("click", function (e) {
       var chip = e.target.closest(".byo-chip");
-      if (!chip || chip.classList.contains("is-on")) return;
+      if (!chip || chip.disabled || chip.classList.contains("is-on")) return;
       group.querySelectorAll(".byo-chip").forEach(function (c) {
         var on = c === chip;
         c.classList.toggle("is-on", on);
         c.setAttribute("aria-checked", on ? "true" : "false");
       });
-      if (file && phase !== "sealing") seal(file);
+      if (file && phase !== "sealing") launchSeal(file);
+    });
+    group.addEventListener("keydown", function (e) {
+      var chip = e.target.closest(".byo-chip");
+      if (!chip || !["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
+      var list = Array.from(group.querySelectorAll(".byo-chip"));
+      if (chip.disabled) return;
+      e.preventDefault();
+      var index = list.indexOf(chip), next;
+      if (e.key === "Home") next = 0;
+      else if (e.key === "End") next = list.length - 1;
+      else next = (index + (["ArrowRight", "ArrowDown"].includes(e.key) ? 1 : -1) + list.length) % list.length;
+      list[next].focus(); list[next].click();
     });
   });
 
@@ -511,13 +569,13 @@
   el.openGo.addEventListener("click", function () { openSealed(); });
   el.openCode.addEventListener("keydown", function (e) { if (e.key === "Enter") openSealed(); });
 
-  el.copy.addEventListener("click", function () {
+  el.copy.addEventListener("click", async function () {
     el.code.select();
     try {
-      navigator.clipboard.writeText(el.code.value);
+      await navigator.clipboard.writeText(el.code.value);
       el.copy.textContent = "copied";
       setTimeout(function () { el.copy.textContent = "copy"; }, 1600);
-    } catch (e) { /* the field is selected; the viewer can copy by hand */ }
+    } catch (e) { el.copy.textContent = "Select & copy"; setNote("The code is selected. Copy it with your device’s copy command."); }
   });
 
   el.tamper.addEventListener("click", function () {
@@ -527,12 +585,14 @@
       setNote("Armed. One byte of the next chunk will be changed before it is verified.");
     } else if (file) {
       el.tamper.textContent = "Change one byte";
-      seal(file, 2);
+      launchSeal(file, 2);
     }
   });
 
   el.reset.addEventListener("click", function () {
     run++; phase = "idle"; file = null; sealed = null; incoming = null;
+    setBusy(false); clearPreview();
+    if (el.openTerms) el.openTerms.hidden = true;
     el.input.value = ""; el.openInput.value = ""; el.openCode.value = "";
     el.stage.hidden = true; el.share.hidden = true; el.progress.textContent = "";
     openStatus("", null);

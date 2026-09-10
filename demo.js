@@ -294,8 +294,8 @@
     totals = { segs: 0, blocks: 0, bytes: 0 };
     paintStats();
     el.halt.classList.remove("is-shown");
-    el.restart.hidden = true;
-    el.tamper.disabled = false;
+    el.restart.hidden = false;
+    el.tamper.disabled = true;
     el.stage.classList.remove("is-noplayback");
     sourceBuffer = null; ms = null;
     setTamperLabel();
@@ -305,13 +305,16 @@
       // The manifest is the one file whose URL cannot carry its own hash, so it
       // must be revalidated; everything else keys off what it says.
       raw = await (await fetch(BASE + "scrollcast.json", { cache: "no-cache" })).json();
-      manifest = SC.normalizeManifest(raw);
+      var loadedManifest = SC.normalizeManifest(raw);
     } catch (e) {
+      if (myRun !== run) return;
+      phase = "error";
       setBadge("demo unavailable", "halt");
       setNote("Could not load the signed manifest: " + e.message);
       return;
     }
     if (myRun !== run) return;
+    manifest = loadedManifest;
 
     // 1. Trust gate. No media byte is fetched until the manifest's signature
     //    verifies against the publisher key compiled into the bundle.
@@ -327,6 +330,7 @@
       return;
     }
     setBadge("publisher verified", "ok");
+    el.tamper.disabled = false;
 
     rendition = manifest.renditions[0];
     segs = rendition.segments;
@@ -410,12 +414,18 @@
     start();
   });
 
-  // Recovery for a browser that refused autoplay: let the viewer start it.
-  el.video.addEventListener("click", function () {
-    if (phase === "halted") return;
-    if (el.video.paused) { el.video.play().catch(function () {}); }
-    else { el.video.pause(); }
-  });
-
-  start();
+  // Native controls provide keyboard, touch, volume, and fullscreen access.
+  // Start when the screening room approaches the viewport, so the proof has
+  // not already finished while the visitor is still reading the introduction.
+  if (typeof IntersectionObserver !== "undefined") {
+    var observer = new IntersectionObserver(function (entries) {
+      if (entries.some(function (entry) { return entry.isIntersecting; })) {
+        observer.disconnect();
+        if (phase === "idle") start();
+      }
+    }, { rootMargin: "100px" });
+    observer.observe(el.stage);
+    el.tamper.disabled = true;
+    setBadge("ready to screen", null);
+  } else start();
 })();

@@ -10,9 +10,15 @@ stream, byte verification before decoding, and a local sealed-file demo.
 
 Scenes, picture stems and audio stems reference preserved originals. Every edit
 adds a signed revision with contributor attribution. End credits retain the
-people behind earlier versions. Owners can choose a minimum revenue share—50%
-to start, 75%, 0%, or custom—and collaborators divide the remainder. Conflicting
-minimums over 100% prevent monetization. Sales and payouts are not connected.
+people behind earlier versions. The **project owner** controls the owning
+organization's rules, member roles and revenue share—50% by default, 75%, 0%, or
+custom. Editors receive contribution credits and agreed shares; uploading a stem
+does not confer ownership or create an automatic revenue minimum.
+
+Admin, editor, reviewer and distributor roles have configurable permissions.
+Invitations cannot exceed current organization roles or project limits. Removing
+a member's access preserves their contribution history. Sales and payouts are
+not connected. These are project-scoped organization rules, not cross-project SSO.
 
 The studio keeps files locally and can produce an encrypted creator backup.
 Its invitation controls preview nested Scrollcast access tokens, hot-swapped
@@ -35,7 +41,7 @@ remote privacy and revocation can be used from this page.
 - The own-file demo signs and encrypts local video, audio or images, supports
   single/custom play counts in that browser's storage, and optional visible
   assigned viewer IDs. Browser-local counts do not enforce a global quota.
-- The studio signs append-only editorial history, evaluates revenue minimums,
+- The studio signs append-only editorial history, evaluates organization rules and project revenue minimums,
   previews permission policy and verifies/restores encrypted creator archives.
 
 ## Limits

@@ -549,8 +549,8 @@ body.experience-open { overflow: hidden; }
 .count-field { display: flex; align-items: center; gap: 16px; font-size: 13px; }
 .count-field input { width: 100px; }
 .media-frame { position: relative; background: #030504; }
-/* The primary mark has a fully opaque backing. Identity stays readable over
-   bright or busy footage, with a compact silhouette inside the image safe area. */
+/* Translucent backing lets the film show through; a light text shadow keeps
+   the viewer identity readable inside the image safe area. */
 .viewer-watermark {
   position: absolute;
   inset: 0;
@@ -566,13 +566,13 @@ body.experience-open { overflow: hidden; }
   width: max-content;
   max-width: min(74%, 26rem);
   padding: 12px 16px 11px;
-  border: 1px solid #81765d;
-  border-left: 2px solid #d9bd81;
+  border: 1px solid #81765d66;
+  border-left: 2px solid #d9bd81a6;
   border-radius: 3px 12px 12px 3px;
-  background: #151a18;
+  background: #151a187a;
   color: #f2eee4;
-  box-shadow: 0 4px 18px #00000035, inset 0 1px 0 #ffffff0a;
-  text-shadow: none;
+  box-shadow: 0 4px 18px #0000001a, inset 0 1px 0 #ffffff08;
+  text-shadow: 0 1px 3px #000000b3;
   animation: watermark-float 36s ease-in-out infinite alternate;
 }
 .watermark-heading {
@@ -582,7 +582,7 @@ body.experience-open { overflow: hidden; }
   gap: 5px 20px;
   padding-bottom: 8px;
   margin-bottom: 8px;
-  border-bottom: 1px solid #726950;
+  border-bottom: 1px solid #72695066;
 }
 .watermark-wordmark {
   font: 400 clamp(18px, 2.4cqi, 25px)/1 var(--serif);
@@ -601,12 +601,13 @@ body.experience-open { overflow: hidden; }
   max-width: 64%;
   padding: 5px 9px;
   border-radius: 3px;
-  background: #151a18;
+  background: #151a184d;
   color: #d7daca;
   font: 10px/1.5 var(--mono);
   letter-spacing: .08em;
   overflow-wrap: anywhere;
-  box-shadow: 0 2px 10px #00000025;
+  box-shadow: 0 2px 10px #00000014;
+  text-shadow: 0 1px 3px #000000b3;
   animation: watermark-float 41s ease-in-out infinite alternate-reverse;
 }
 .watermark-echo b { font-weight: 400; }

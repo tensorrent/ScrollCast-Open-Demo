@@ -25,7 +25,7 @@
 <link rel="preload" href="fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/instrument-serif.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="fonts.css">
-<link rel="stylesheet" href="styles.css?v=3c4984906571">
+<link rel="stylesheet" href="styles.css?v=54f1a5c044cf">
 </head>
 <body>
 <a class="skip" href="#demo">Skip to the demo</a>
@@ -47,7 +47,7 @@
         </div>
         <div class="media-frame" id="sc-frame"><div class="screen" id="sc-screen">
           <video id="sc-video" muted playsinline controls preload="none" poster="poster.jpg" aria-label="Sample stream verifying in real time"></video>
-          <div class="viewer-watermark" id="sc-watermark" hidden><span class="watermark-tag">SCROLLCAST / VIEWER <b data-viewer-id></b></span><span class="watermark-tag watermark-echo" aria-hidden="true"><b data-viewer-id></b> / PRIVATE SCREENING</span></div>
+          <div class="viewer-watermark" role="img" id="sc-watermark" hidden><div class="watermark-tag"><div class="watermark-heading"><span class="watermark-wordmark">Scrollcast<span aria-hidden="true">✦</span></span><span class="watermark-edition">Private screening</span></div><div class="watermark-identity"><span class="watermark-label">Viewer ID</span><b data-viewer-id></b></div></div><span class="watermark-echo" aria-hidden="true"><span class="watermark-echo-label">SC /</span> <b data-viewer-id></b></span></div>
           <img id="sc-poster" src="poster.jpg" alt="Frame from the sample stream">
           <div class="sc-halt" id="sc-halt">
             <p class="sc-halt-title">Playback stopped</p>
@@ -163,7 +163,7 @@
         <div class="play-allowance" id="byo-play-allowance" hidden><span id="byo-play-status" role="status"></span><button id="byo-replay" class="btn" type="button">Start next play</button></div>
         <div class="media-frame" id="byo-frame"><div class="screen" id="byo-media">
           <video id="byo-video" muted playsinline controls preload="metadata" aria-label="Your file"></video>
-          <div class="viewer-watermark" id="byo-watermark" hidden><span class="watermark-tag">SCROLLCAST / VIEWER <b data-viewer-id></b></span><span class="watermark-tag watermark-echo" aria-hidden="true"><b data-viewer-id></b> / PRIVATE SCREENING</span></div>
+          <div class="viewer-watermark" role="img" id="byo-watermark" hidden><div class="watermark-tag"><div class="watermark-heading"><span class="watermark-wordmark">Scrollcast<span aria-hidden="true">✦</span></span><span class="watermark-edition">Private screening</span></div><div class="watermark-identity"><span class="watermark-label">Viewer ID</span><b data-viewer-id></b></div></div><span class="watermark-echo" aria-hidden="true"><span class="watermark-echo-label">SC /</span> <b data-viewer-id></b></span></div>
           <div id="byo-audio-art" class="audio-art" hidden><span aria-hidden="true">♫</span><p>Audio stem</p></div>
           <div id="byo-ended" class="screening-ended" hidden><p>That screening is complete.</p><span>See your remaining plays above.</span></div>
           <img id="byo-image" alt="Your photo" hidden>

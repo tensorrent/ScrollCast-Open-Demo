@@ -25,13 +25,13 @@
 <link rel="preload" href="fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/instrument-serif.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="fonts.css">
-<link rel="stylesheet" href="styles.css?v=4adc16d85819">
+<link rel="stylesheet" href="styles.css?v=7e41e9c08af1">
 </head>
 <body>
 <a class="skip" href="#demo">Skip to the demo</a>
-<header class="site-head"><div class="wide nav-inner"><a class="brand" href="#top"><span class="brand-icon" aria-hidden="true">▥</span> SCROLLCAST <small>/ 01</small></a><nav class="site-nav" aria-label="Main navigation"><a href="#how">The idea</a><a href="#byo">Your film</a><a class="nav-cta" href="#demo">Enter the screening room <span aria-hidden="true">↗</span></a></nav></div></header>
+<header class="site-head"><div class="wide nav-inner"><a class="brand" href="#top"><span class="brand-icon" aria-hidden="true">▥</span> SCROLLCAST <small>/ 01</small></a><nav class="site-nav" aria-label="Main navigation"><a href="#how">The idea</a><a href="#byo">Your film</a><a class="nav-cta" href="#demo" data-experience>Enter the screening room <span aria-hidden="true">↗</span></a></nav></div></header>
 <main id="top">
-<section class="hero"><div class="wide hero-inner"><div class="hero-top"><span class="eyebrow">INDEPENDENT FILM. INDEPENDENT CONTROL.</span><span class="edition">FESTIVAL EDITION · 2026</span></div><div class="hero-copy"><h1>Your film.<br><em>Your terms.</em></h1><p>A film can travel.<br>Permission should stay with you.</p><div class="hero-actions"><a class="btn btn-primary" href="#demo"><span class="play-icon" aria-hidden="true">▶</span> Experience Scrollcast <span aria-hidden="true">↗</span></a><a class="text-link" href="#byo">Bring your own film <span aria-hidden="true">↓</span></a></div></div><div id="cinema" class="cinema" aria-hidden="true"><div class="scene-fallback"></div></div><button id="motion-toggle" class="motion-toggle" type="button" aria-pressed="false">Ⅱ <span>Pause motion</span></button><div class="scene-caption"><span class="caption-line"></span><span>ONE FILM. A CHAIN OF TRUST.<small>Move your cursor to explore.</small></span></div><div class="hero-bottom"><span>SEALED MEDIA <i>/</i> REVOCABLE TICKETS <i>/</i> VERIFIED PLAYBACK</span><a href="#demo">SCROLL TO DISCOVER <span aria-hidden="true">↓</span></a></div></div></section>
+<section class="hero"><div class="wide hero-inner"><div class="hero-top"><span class="eyebrow">INDEPENDENT FILM. INDEPENDENT CONTROL.</span><span class="edition">FESTIVAL EDITION · 2026</span></div><div class="hero-copy"><h1>Your film.<br><em>Your terms.</em></h1><p>A film can travel.<br>Permission should stay with you.</p><div class="hero-actions"><a class="btn btn-primary" href="#demo" data-experience><span class="play-icon" aria-hidden="true">▶</span> Experience Scrollcast <span aria-hidden="true">↗</span></a><a class="text-link" href="#byo">Bring your own film <span aria-hidden="true">↓</span></a></div></div><div id="cinema" class="cinema" aria-hidden="true"><div class="scene-fallback"></div></div><button id="motion-toggle" class="motion-toggle" type="button" aria-pressed="false">Ⅱ <span>Pause motion</span></button><div class="scene-caption"><span class="caption-line"></span><span>ONE FILM. A CHAIN OF TRUST.<small>Move your cursor to explore.</small></span></div><div class="hero-bottom"><span>SEALED MEDIA <i>/</i> REVOCABLE TICKETS <i>/</i> VERIFIED PLAYBACK</span><a href="#demo">SCROLL TO DISCOVER <span aria-hidden="true">↓</span></a></div></div></section>
 <section class="band principle" id="how"><div class="wide editorial-grid"><div class="section-index">01 <span>THE IDEA</span></div><div><h2>Send the film.<br><span class="dim">Keep the invitation.</span></h2><p class="lede narrow">A link moves a file. Scrollcast separates the sealed film from permission to watch it—so a screener can reach the right people, on your terms.</p><div class="principles"><article><span class="number">01 / SEAL</span><h3>The film travels sealed.</h3><p>Encrypted media. A separately shared key. The film alone grants no access.</p></article><article><span class="number">02 / INVITE</span><h3>You set the terms.</h3><p>The hosted product issues tickets with play counts and time windows, and can cancel future access.</p></article><article><span class="number">03 / VERIFY</span><h3>Trust is checked.</h3><p>The player checks the publisher and each segment. Altered bytes cause a visible halt before decode.</p></article></div></div></div></section>
 <section class="band screening" id="demo"><div class="wide"><div class="section-index">02 <span>THE SCREENING ROOM</span></div><div class="section-heading"><div><p class="eyebrow">A SMALL FILM. A REAL PROOF.</p><h2>See what trust<br><em>looks like.</em></h2></div><p>Watch the film. Change one byte.<br>See the verifier stop playback.<br>Every result comes from the real code.</p></div><ol class="demo-steps"><li><b>01</b><span>Start the screening<small>A real, signed sample film.</small></span></li><li><b>02</b><span>Watch the verification<small>Every segment checked.</small></span></li><li><b>03</b><span>Change one byte<small>Playback stops. Proof stays.</small></span></li></ol>
       <div class="stage" id="sc-stage">
@@ -185,6 +185,26 @@
         </p>
         </div></div></section>
 </main><footer class="site-foot wide"><a class="brand" href="#top">SCROLLCAST</a><span>SEALED MEDIA. OPEN POSSIBILITIES.</span><a href="#limits">Access &amp; limits</a><span>© 2026 SCROLLCAST</span></footer>
-<script src="scrollcast-verify.js?v=f8c57debe369"></script><script src="demo.js?v=8a1f05c45f7f" data-base=""></script><script src="byo.js?v=2daa603a384a"></script><script type="module" src="cinema.js?v=79efa69de8d4"></script>
+
+<dialog id="experience" class="experience" aria-label="Experience Scrollcast" data-scene="closed">
+  <div class="experience-atmosphere" aria-hidden="true"></div>
+  <div class="experience-bar">
+    <span class="brand"><span class="brand-icon" aria-hidden="true">▥</span> SCROLLCAST</span>
+    <span id="experience-chapter" class="experience-chapter">01 / THE SCREENING</span>
+    <button id="experience-close" class="experience-close" type="button" aria-label="Close experience">Exit <span aria-hidden="true">×</span></button>
+  </div>
+  <div id="experience-portal" class="experience-portal" aria-hidden="true"></div>
+  <section id="experience-watch" class="experience-watch" aria-labelledby="experience-title">
+    <div class="experience-film-heading"><div><p class="eyebrow">YOU’RE IN. LET THE STORY BEGIN.</p><h2 id="experience-title" tabindex="-1">Big Buck <em>Bunny.</em></h2></div><span class="experience-film-meta">BLENDER FOUNDATION<br>2008 / ANIMATED SHORT</span></div>
+    <div id="experience-player"></div>
+    <div class="experience-handoff">
+      <div><p id="experience-status">A 12-second first look. Then, your film.</p><button id="experience-stay" class="experience-stay" type="button">Keep watching the sample</button></div>
+      <button id="experience-next" class="btn btn-primary" type="button">Make it your film <span aria-hidden="true">↗</span></button>
+    </div>
+    <div id="experience-progress" class="experience-progress" aria-hidden="true"></div>
+  </section>
+  <section id="experience-create" class="experience-create" aria-label="Bring your own film" hidden></section>
+</dialog>
+<script src="scrollcast-verify.js?v=f8c57debe369"></script><script src="demo.js?v=8a3f0eed720b" data-base=""></script><script src="byo.js?v=2daa603a384a"></script><script src="experience.js?v=38d3944d9be2"></script><script type="module" src="cinema.js?v=176fd7720589"></script>
 <noscript><p class="no-js">JavaScript is required for the interactive demonstration and local file sealing. The briefing remains available above.</p></noscript>
 </body></html>

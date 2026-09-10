@@ -70,6 +70,7 @@
   var totals = { segs: 0, blocks: 0, bytes: 0 };
   var cells = [];
   var ms = null, sourceBuffer = null, mseMode = false;
+  var mediaUrl = null;
   var forceNoPlayback = false;   // set by the watchdog after MSE fails to deliver
 
   var MediaSourceCtor = window.ManagedMediaSource || window.MediaSource || null;
@@ -77,6 +78,7 @@
   function setBadge(text, kind) {
     el.badge.textContent = text;
     el.badge.className = "sc-badge" + (kind ? " is-" + kind : "");
+    document.dispatchEvent(new CustomEvent("scrollcast:sample-state", { detail: { text: text, kind: kind } }));
   }
   function setNote(text) { if (el.note) el.note.textContent = text; }
 
@@ -150,21 +152,24 @@
     try { return MediaSourceCtor.isTypeSupported(mimeCodec); } catch (e) { return false; }
   }
 
-  function openMediaSource(mimeCodec) {
+  function openMediaSource(mimeCodec, myRun) {
     return new Promise(function (resolve, reject) {
-      ms = new MediaSourceCtor();
+      var currentSource = new MediaSourceCtor();
+      ms = currentSource;
       // ManagedMediaSource (Safari 17+, iOS) requires this on the element it
       // is attached to; harmless for plain MediaSource.
       try { el.video.disableRemotePlayback = true; } catch (e) { /* older engines */ }
-      el.video.src = URL.createObjectURL(ms);
+      mediaUrl = URL.createObjectURL(currentSource);
+      el.video.src = mediaUrl;
       var to = setTimeout(function () { reject(new Error("MediaSource open timed out")); }, 5000);
-      ms.addEventListener("sourceopen", function () {
+      currentSource.addEventListener("sourceopen", function () {
         clearTimeout(to);
+        if (myRun !== run) return reject(new Error("Screening cancelled"));
         try {
           // Leave SourceBuffer.mode at its default ("segments"): the packager
           // emits fMP4 with correct baseMediaDecodeTime, and this matches the
           // sequence the shipping player is device-verified against.
-          sourceBuffer = ms.addSourceBuffer(mimeCodec);
+          sourceBuffer = currentSource.addSourceBuffer(mimeCodec);
           resolve();
         } catch (e) { reject(e); }
       }, { once: true });
@@ -172,8 +177,9 @@
   }
 
   function appendBuffer(bytes) {
+    var buffer = sourceBuffer;
     return new Promise(function (resolve, reject) {
-      if (!sourceBuffer) return resolve();
+      if (!buffer) return resolve();
       var timer = setTimeout(function () {
         cleanup();
         reject(new Error("SourceBuffer append timed out"));
@@ -182,20 +188,21 @@
       var fail = function (e) { cleanup(); reject(e instanceof Error ? e : new Error("append failed")); };
       var cleanup = function () {
         clearTimeout(timer);
-        sourceBuffer.removeEventListener("updateend", done);
-        sourceBuffer.removeEventListener("error", fail);
+        buffer.removeEventListener("updateend", done);
+        buffer.removeEventListener("error", fail);
       };
-      sourceBuffer.addEventListener("updateend", done);
-      sourceBuffer.addEventListener("error", fail);
-      try { sourceBuffer.appendBuffer(bytes); } catch (e) { fail(e); }
+      buffer.addEventListener("updateend", done);
+      buffer.addEventListener("error", fail);
+      try { buffer.appendBuffer(bytes); } catch (e) { fail(e); }
     });
   }
 
   function waitForIdle() {
+    var buffer = sourceBuffer;
     return new Promise(function (resolve) {
-      if (!sourceBuffer || !sourceBuffer.updating) return resolve();
-      sourceBuffer.addEventListener("updateend", function h() {
-        sourceBuffer.removeEventListener("updateend", h);
+      if (!buffer || !buffer.updating) return resolve();
+      buffer.addEventListener("updateend", function h() {
+        buffer.removeEventListener("updateend", h);
         resolve();
       });
     });
@@ -288,6 +295,7 @@
 
   async function start(tamperAtIndex) {
     var myRun = ++run;
+    releaseMedia();
     phase = "running";
     armAt = typeof tamperAtIndex === "number" ? tamperAtIndex : -1;
     nextIndex = 0;
@@ -342,13 +350,15 @@
     //    unavailable the verification still runs on the same real bytes.
     mseMode = canUseMse(rendition.mimeCodec);
     if (mseMode) {
-      try { await openMediaSource(rendition.mimeCodec); }
-      catch (e) { mseMode = false; }
+      try { await openMediaSource(rendition.mimeCodec, myRun); }
+      catch (e) { if (myRun !== run) return; mseMode = false; }
     }
+    if (myRun !== run) return;
     if (mseMode) armWatchdog(myRun);
     if (!mseMode) {
       el.stage.classList.add("is-noplayback");
       setNote("This browser will not stream through MediaSource, so the picture is a still frame. The verification below is running for real on the same signed segments.");
+      document.dispatchEvent(new CustomEvent("scrollcast:sample-state", { detail: { kind: "fallback" } }));
     }
     if (myRun !== run) return;
 
@@ -362,6 +372,7 @@
           return;
         }
         await appendBuffer(initBytes);
+        if (myRun !== run) return;
         // Deliberately NOT awaited. WebKit leaves the play() promise pending
         // while the element has no playable data, and the only thing that can
         // supply that data is the loop below — so awaiting it here deadlocks
@@ -381,6 +392,7 @@
       if (myRun !== run) return;
       if (mseMode) {
         await waitForIdle();
+        if (myRun !== run) return;
         try { if (ms && ms.readyState === "open") ms.endOfStream(); } catch (e) {}
       }
       phase = "complete";
@@ -395,6 +407,28 @@
   }
 
   // ── controls ─────────────────────────────────────────────────────────────
+  function releaseMedia() {
+    el.video.pause();
+    // Detach before revoking. Pending callbacks retain their own SourceBuffer
+    // and run token, so closing/reopening cannot change another run's decoder.
+    el.video.removeAttribute("src");
+    el.video.load();
+    if (mediaUrl) URL.revokeObjectURL(mediaUrl);
+    mediaUrl = null;
+    sourceBuffer = null; ms = null;
+  }
+  document.addEventListener("scrollcast:sample", function (event) {
+    if (observer) observer.disconnect();
+    if (event.detail.action === "start") {
+      forceNoPlayback = false;
+      setNote(DEFAULT_NOTE);
+      start();
+    } else if (event.detail.action === "stop") {
+      ++run;
+      phase = "idle";
+      releaseMedia();
+    }
+  });
   // The tamper button must always do something. Mid-run it corrupts the next
   // segment; once the stream has finished it restarts with a segment already
   // marked for corruption, so a visitor who arrives late still sees the halt.

@@ -144,6 +144,7 @@
   // Give people exploring verification or seeking the film control of pacing.
   $('sc-tamper').addEventListener('click', keepWatching);
   $('sc-restart').addEventListener('click', keepWatching);
+  document.addEventListener('scrollcast:screening-options', () => { if (state === 'watching') keepWatching(); });
   video.addEventListener('seeking', () => { if (state === 'watching') keepWatching(); });
   function followPlayback() {
     if (state !== 'watching' || document.hidden || document.fullscreenElement || video.webkitDisplayingFullscreen) return;
@@ -174,7 +175,7 @@
   dialog.addEventListener('close', close);
   // This link lives in the moved file panel. Restore the page before navigating.
   dialog.addEventListener('click', event => {
-    if (event.target.closest('a[href="#limits"]')) close();
+    if (event.target.closest('a[href="#limits"],a[href="#studio"]')) close();
   });
   own.querySelector('h2').setAttribute('tabindex', '-1');
 })();

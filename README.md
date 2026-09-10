@@ -1,52 +1,50 @@
-# SCROLLCAST — open briefing
+# SCROLLCAST — open demo
 
-Public briefing on sealed media delivery and revocable access, for festivals,
-sales agents, and rights holders.
+[Experience Scrollcast](https://tensorrent.github.io/ScrollCast-Open-Demo/)
 
-**Live page:** https://tensorrent.github.io/ScrollCast-Open-Demo/
+This repository is generated from the private Scrollcast source with `npm run
+site`. The page has a Three.js screening entrance, a real signed Big Buck Bunny
+stream, byte verification before decoding, and a local sealed-file demo.
 
-## What this repository is
+## Pro studio preview
 
-Published output. Every file here is generated from the private SCROLLCAST
-source repo by `npm run site` and pushed as static HTML. Nothing is written by
-hand in this tree, so send pull requests to the source repo rather than here.
+Scenes, picture stems and audio stems reference preserved originals. Every edit
+adds a signed revision with contributor attribution. End credits retain the
+people behind earlier versions. Owners can choose a minimum revenue share—50%
+to start, 75%, 0%, or custom—and collaborators divide the remainder. Conflicting
+minimums over 100% prevent monetization. Sales and payouts are not connected.
 
-It is a briefing, so it is plainly readable on purpose: crawlable HTML, a real
-link-preview card, self-hosted fonts, and no third-party requests. There is no
-obfuscation, and none is claimed — a public marketing page has nothing to
-protect, and pretending otherwise would undercut the one thing this project is
-actually selling.
+The studio keeps files locally and can produce an encrypted creator backup.
+Its invitation controls preview nested Scrollcast access tokens, hot-swapped
+references and revocation. **The protected account service is not connected to
+this public page.** Real Pro invitations grant view/edit/share permissions to
+media in one protected project folder; they do not attach the original file.
+Creator-copy export tools are separate and make a downloadable copy.
 
-## The demo is the real thing
+The private source includes an authenticated Pro API with encrypted originals,
+per-account contributions, counted admissions and per-fragment access checks.
+That API and its hosted invitation/player integration must be deployed before
+remote privacy and revocation can be used from this page.
 
-The verification demo in the hero is not a mockup or an animation:
+## What is real on this page
 
-- `scrollcast.json` is a real manifest for a real stream, signed with a real
-  Ed25519 publisher key.
-- `media/` holds real CMAF segments produced by the real packager.
-- `scrollcast-verify.js` is the shipping codec, bundled from source with the
-  publisher key compiled in. It exposes the same verification entry points the
-  packager and the offline prover use.
-- The page checks the manifest signature before fetching a single media byte,
-  then re-derives both addresses — the 16-hex substrate root and the sha256 —
-  from the bytes that actually arrived, and hands only verified segments to the
-  decoder.
-- **Change one byte** flips a real byte in a real segment before verification
-  runs. The halt, and the two disagreeing addresses it prints, are the verifier
-  rejecting it. Nothing about that outcome is scripted.
+- `scrollcast.json` is an Ed25519-signed manifest for the actual sample media.
+- The verifier checks publisher signature, substrate addresses and SHA-256
+  before passing each received segment to the decoder.
+- “Change one byte” corrupts an actual segment and the actual verifier refuses it.
+- The own-file demo signs and encrypts local video, audio or images, supports
+  single/custom play counts in that browser's storage, and optional visible
+  assigned viewer IDs. Browser-local counts do not enforce a global quota.
+- The studio signs append-only editorial history, evaluates revenue minimums,
+  previews permission policy and verifies/restores encrypted creator archives.
 
-You are meant to check this. Open devtools and watch the fetches, or take
-`media/main/seg003.m4s`, flip a byte, and confirm its digest stops matching the
-entry in `scrollcast.json`.
+## Limits
 
-## What is not here
+Local identities are self-declared. Visible viewer watermarks can be removed and
+are not forensic watermarking. A 0% revenue floor is not a copyright waiver.
+Browser storage can be cleared; preserve a private project backup. Revocation
+cannot recall already buffered, downloaded or recorded media. This is not DRM,
+a DCP replacement, a multitrack NLE, a payment service, or proof of rights ownership.
 
-No packager, no player source, no keys, no tests — those stay in the private
-repo. What ships here is the briefing plus the small sample stream it verifies.
-
-## Not claimed
-
-Not a compression codec. Not a DCP replacement for the booth. Not Widevine or
-FairPlay. No forensic watermarking. Tickets govern the next redemption; they do
-not make a play that already happened unrecordable. The limits are stated on the
-page itself, in the same type size as everything else.
+Big Buck Bunny © 2008 Blender Foundation, used under
+[CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).

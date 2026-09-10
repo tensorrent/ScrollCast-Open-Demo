@@ -2,7 +2,7 @@
   "format": "scrollcast",
   "version": 2,
   "title": "SCROLLCAST sample stream",
-  "createdAt": "2026-09-10T00:55:16.681Z",
+  "createdAt": "2026-09-10T02:06:48.370Z",
   "renditions": [
     {
       "id": "main",
@@ -305,6 +305,6 @@
   "signature": {
     "alg": "ed25519",
     "publicKey": "1a2402170508ab0584b7928be7b23c2ed3a8f4419de306a7668f80ff547f2b72",
-    "sig": "55db7cd730cbe8a202a72dfd257c72b63de3cb9d467c3c7837a66de49b959577d19b526c783d9774903732c3352a4a53929eff1e3a2104763a0f76aba64b7805"
+    "sig": "4f64f601433b6354efc1dde4fad36e646f905cc4e89ac1c1c0f68f40bfaec37a983d23be2c8ab7225251bf9799a2fba1ba671ca7e616ecc84c84549d7fc0a603"
   }
 }

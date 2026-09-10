@@ -18,13 +18,10 @@
 // claim: hand someone the container by AirDrop or WeTransfer, send the code by
 // text, and the container is inert to anyone who has only one of the two.
 //
-// WHAT THIS CANNOT DO, and the page says so. Play counts, expiry and
-// revocation are not here, because they cannot be enforced by a page. A rule
-// only binds at a gate the key must pass through, and a static site has no
-// gate — src/player.ts makes the same point where it resolves a key: the
-// ticket resolver belongs to the hosted app, and "the static demo has no
-// resolver". Anything counting plays in here would be a decoration, and this
-// project does not ship those.
+// Signed viewing terms are honoured by this browser. Counts survive reloads
+// in localStorage, but cross-device enforcement needs the hosted ticket gate.
+// Visible watermarks identify an assigned recipient; they are not embedded
+// forensic marks or proof of an authenticated identity.
 //
 // Nothing is uploaded. There is no fetch, XHR, beacon or FormData in this file
 // and a test fails the build if one appears.
@@ -47,6 +44,10 @@
     tamper: $("byo-tamper"), reset: $("byo-reset"),
     share: $("byo-share"), download: $("byo-download"), code: $("byo-code"), copy: $("byo-copy"),
     ruleChips: $("byo-rule-chips"), roleChips: $("byo-role-chips"), shareRule: $("byo-share-rule"),
+    playCount: $("byo-play-count"), countField: $("byo-count-field"),
+    watermarkToggle: $("byo-watermark-toggle"), viewerId: $("byo-viewer-id"),
+    allowance: $("byo-play-allowance"), playStatus: $("byo-play-status"), replay: $("byo-replay"), ended: $("byo-ended"),
+    audioArt: $("byo-audio-art"),
     // open
     openInput: $("byo-open-file"), openDrop: $("byo-open-drop"),
     openCode: $("byo-open-code"), openGo: $("byo-open-go"), openResult: $("byo-open-result"),
@@ -63,6 +64,7 @@
 
   var IMAGE_RE = /\.(jpe?g|png|webp|avif|gif|heic|heif|tiff?|bmp)$/i;
   var VIDEO_RE = /\.(mp4|mov|m4v|webm|mkv|avi)$/i;
+  var AUDIO_RE = /\.(mp3|m4a|aac|wav|ogg|opus|flac)$/i;
 
   var DEFAULT_NOTE = el.note ? el.note.textContent : "";
   var fmt = function (n) { return n.toLocaleString("en-US"); };
@@ -80,6 +82,8 @@
   var file = null, sealed = null, chunks = [], armAt = -1, nextIndex = 0;
   var totals = { chunks: 0, blocks: 0, bytes: 0 };
   var cells = [], objectUrls = [];
+  var recipient = null;
+  var proMetadata = null;
 
   // ── terms ────────────────────────────────────────────────────────────────
   //
@@ -95,26 +99,41 @@
     var on = group && group.querySelector(".is-on");
     return (on && on.dataset[attr]) || fallback;
   }
-  var selectedRule = function () { return pickedFrom(el.ruleChips, "rule", "until:3"); };
+  var selectedRule = function () { return pickedFrom(el.ruleChips, "rule", "count:1"); };
   var selectedRole = function () { return pickedFrom(el.roleChips, "role", "play"); };
 
   function buildAccess(now) {
     var spec = selectedRule(), m, rule;
     if (spec === "forever") rule = { kind: "forever" };
+    else if (spec === "count:custom") rule = { kind: "count", max: Number(el.playCount.value) };
     else if ((m = spec.match(/^count:(\d+)$/))) rule = { kind: "count", max: +m[1] };
     else if ((m = spec.match(/^until:(\d+)$/))) {
       rule = { kind: "until", days: +m[1], until: new Date(now + (+m[1]) * 86400000).toISOString() };
-    } else rule = { kind: "forever" };
-    return { rule: rule, role: selectedRole() };
+    } else throw new Error("Choose a play count or viewing window.");
+    if (rule.kind === "count" && (!Number.isSafeInteger(rule.max) || rule.max < 1 || rule.max > 100000)) throw new Error("Choose a whole-number play count from 1 to 100000.");
+    var access = { rule: rule, role: selectedRole() };
+    if (el.watermarkToggle && el.watermarkToggle.checked) {
+      var id = el.viewerId.value.trim();
+      if (!/^[A-Za-z0-9][A-Za-z0-9._@+\-]{0,63}$/.test(id)) throw new Error("Enter a viewer ID of 1–64 letters, numbers, dots, @, +, hyphens or underscores.");
+      if (!window.ScrollcastMedia) throw new Error("The viewer-ID player is unavailable. Reload this page before sealing.");
+      access.watermark = { mode: "visible", viewerId: id };
+    }
+    if (proMetadata) {
+      SC.validateRights(proMetadata.rights);
+      access.rights = proMetadata.rights;
+      access.segmentReceipt = proMetadata.receipt;
+      access.role = proMetadata.rights.permissions.edit ? "edit" : proMetadata.rights.permissions.share ? "share" : "play";
+    }
+    return access;
   }
 
   function describeAccess(a) {
     if (!a || !a.rule) return "no limit \u00b7 play only";
     var r = a.rule, when;
-    if (r.kind === "count") when = r.max === 1 ? "one open" : r.max + " opens";
+    if (r.kind === "count") when = r.max === 1 ? "single play" : r.max + " plays";
     else if (r.kind === "until") when = "until " + new Date(r.until).toLocaleString();
     else when = "no time limit";
-    return when + " \u00b7 " + (ROLE_LABEL[a.role] || "play only");
+    return when + " \u00b7 " + (ROLE_LABEL[a.role] || "play only") + (a.watermark ? " \u00b7 viewer ID: " + a.watermark.viewerId : "");
   }
 
   // "1 open" is remembered per browser, keyed by the container's key
@@ -122,16 +141,23 @@
   // count, which is exactly why the page does not call this enforcement.
   var opensKey = function (keyId) { return "sc-open:" + String(keyId || "").slice(0, 32); };
   function opensSoFar(keyId) {
-    try { return parseInt(localStorage.getItem(opensKey(keyId)) || "0", 10) || 0; } catch (e) { return 0; }
+    try {
+      var raw = localStorage.getItem(opensKey(keyId)) || "0", count = Number(raw);
+      if (!/^\d+$/.test(raw) || !Number.isSafeInteger(count) || count < 0) throw new Error("invalid counter");
+      return count;
+    } catch (e) { throw new Error("Browser storage is unavailable or invalid. Counted playback cannot start here."); }
   }
   function noteOpen(keyId) {
-    try { localStorage.setItem(opensKey(keyId), String(opensSoFar(keyId) + 1)); } catch (e) {}
+    var count = opensSoFar(keyId) + 1;
+    try { localStorage.setItem(opensKey(keyId), String(count)); }
+    catch (e) { throw new Error("This browser cannot save the play count. Nothing was displayed."); }
   }
 
   /** null when the container may be opened, else the reason it may not. */
   function refuseReason(header) {
     var a = header && header.access;
     if (!a || !a.rule) return null;             // sealed before terms existed
+    if (a.rights && !a.rights.permissions.play) return "Playback is not granted in this segment’s recipient permissions.";
     var r = a.rule;
     if (r.kind === "until" && r.until) {
       if (Date.now() > Date.parse(r.until)) {
@@ -142,8 +168,8 @@
       var used = opensSoFar((header.encryption || {}).keyId);
       if (used >= r.max) {
         return r.max === 1
-          ? "this code was set to open once, and it already has \u2014 nothing was decrypted"
-          : "this code allowed " + r.max + " opens and all of them are used \u2014 nothing was decrypted";
+          ? "The single play has been used. No plays remain — nothing was decrypted."
+          : "All " + r.max + " plays have been used — nothing was decrypted.";
       }
     }
     return null;
@@ -151,6 +177,7 @@
 
   function kindOf(f) {
     if (/^image\//.test(f.type) || IMAGE_RE.test(f.name)) return "image";
+    if (/^audio\//.test(f.type) || AUDIO_RE.test(f.name)) return "audio";
     if (/^video\//.test(f.type) || VIDEO_RE.test(f.name)) return "video";
     return null;
   }
@@ -188,10 +215,13 @@
     c.className = "sc-cell is-ok";
   }
 
-  function showMedia(kind, url) {
-    el.video.hidden = kind !== "video";
+  function showMedia(kind, url, watermark) {
+    if (window.ScrollcastMedia) window.ScrollcastMedia.setWatermark("byo", watermark || null, kind);
+    else if (watermark) throw new Error("The viewer-ID player is unavailable. Nothing was displayed.");
+    el.video.hidden = kind === "image";
     el.image.hidden = kind !== "image";
-    if (kind === "video") { el.video.src = url; el.video.play().catch(function () {}); }
+    if (el.audioArt) el.audioArt.hidden = kind !== "audio";
+    if (kind === "video" || kind === "audio") { el.video.src = url; el.video.play().catch(function () {}); }
     else { el.image.src = url; }
   }
 
@@ -230,7 +260,7 @@
     if (!headerLen || headerLen > MAX_HEADER_BYTES || 12 + headerLen >= f.size) throw new Error("This container has an invalid header or is incomplete.");
     var headerBytes = await f.slice(12, 12 + headerLen).arrayBuffer();
     var header = JSON.parse(new TextDecoder().decode(headerBytes));
-    if (!header || header.format !== "scrollcast-sealed" || header.version !== 1 || !["image", "video"].includes(header.kind)) throw new Error("Unsupported sealed-file format.");
+    if (!header || header.format !== "scrollcast-sealed" || header.version !== 1 || !["image", "video", "audio"].includes(header.kind)) throw new Error("Unsupported sealed-file format.");
     if (typeof header.title !== "string" || typeof header.mime !== "string" || !Array.isArray(header.segments) || !header.segments.length || header.segments.length > 128) throw new Error("Invalid sealed-file manifest.");
     var encryption = header.encryption || {};
     if (encryption.scheme !== "aes-ctr-fullseg" || !/^[0-9a-f]{64}$/i.test(encryption.keyId || "") || !/^[0-9a-f]{32}$/i.test(encryption.iv || "")) throw new Error("Invalid encryption information.");
@@ -244,14 +274,20 @@
     if (header.access) {
       var rule = header.access.rule;
       if (!rule || !["count", "until", "forever"].includes(rule.kind) || !["play", "share", "edit"].includes(header.access.role)) throw new Error("Invalid viewing terms.");
-      if (rule.kind === "count" && (!Number.isSafeInteger(rule.max) || rule.max < 1)) throw new Error("Invalid viewing count.");
+      if (rule.kind === "count" && (!Number.isSafeInteger(rule.max) || rule.max < 1 || rule.max > 100000)) throw new Error("Invalid viewing count.");
       if (rule.kind === "until" && !Number.isFinite(Date.parse(rule.until))) throw new Error("Invalid viewing window.");
+      var watermark = header.access.watermark;
+      if (watermark && (watermark.mode !== "visible" || typeof watermark.viewerId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._@+\-]{0,63}$/.test(watermark.viewerId))) throw new Error("Invalid viewer watermark.");
+      if (header.access.rights) SC.validateRights(header.access.rights);
     }
     return { header, base: 12 + headerLen };
   }
 
   function setBusy(busy) {
     el.input.disabled = busy; el.openInput.disabled = busy; el.openGo.disabled = busy;
+    if (el.playCount) el.playCount.disabled = busy;
+    if (el.watermarkToggle) el.watermarkToggle.disabled = busy;
+    if (el.viewerId) el.viewerId.disabled = busy || !el.watermarkToggle.checked;
     [el.ruleChips, el.roleChips].forEach(function (group) {
       if (group) group.querySelectorAll(".byo-chip").forEach(function (chip) { chip.disabled = busy; });
     });
@@ -259,6 +295,11 @@
   }
 
   function clearPreview() {
+    recipient = null;
+    if (el.allowance) el.allowance.hidden = true;
+    if (el.ended) el.ended.hidden = true;
+    if (el.audioArt) el.audioArt.hidden = true;
+    if (window.ScrollcastMedia) window.ScrollcastMedia.setWatermark("byo", null);
     releaseUrls();
     try { el.video.pause(); el.video.removeAttribute("src"); el.video.load(); } catch (e) {}
     el.image.removeAttribute("src"); el.image.hidden = true;
@@ -271,6 +312,7 @@
   // ── seal ─────────────────────────────────────────────────────────────────
   async function seal(chosen, tamperAtIndex) {
     var myRun = ++run;
+    var access = buildAccess(Date.now());
     setBusy(true);
     clearPreview();
     incoming = null;
@@ -317,7 +359,6 @@
     if (myRun !== run) return;
 
     var kp = SC.generateKeypair();
-    var access = buildAccess(Date.now());
     var header = SC.signManifest({
       format: "scrollcast-sealed", version: 1,
       title: file.name, mime: file.type || "", kind: kind,
@@ -357,7 +398,7 @@
 
     // Show the original locally so there is something on screen while the
     // verification pass runs. The recipient's copy comes from the container.
-    showMedia(kind, trackUrl(URL.createObjectURL(file)));
+    showMedia(kind, trackUrl(URL.createObjectURL(file)), access.watermark);
 
     // ── verify the sealed bytes back, exactly as a recipient would ──────────
     phase = "playing";
@@ -448,8 +489,11 @@
     var code = (el.openCode.value || "").trim().toLowerCase();
     if (!/^[0-9a-f]{32}$/.test(code)) return openStatus("a code is 32 hex characters", "bad");
     if (SC.keyCommitment(code) !== incoming.header.encryption.keyId) return openStatus("wrong code — nothing was decrypted", "bad");
-    var refusal = refuseReason(incoming.header);
+    var refusal;
+    try { refusal = refuseReason(incoming.header); }
+    catch (e) { return openStatus(e.message, "bad"); }
     if (refusal) return openStatus(refusal, "bad");
+    if (incoming.header.access && incoming.header.access.watermark && !window.ScrollcastMedia) return openStatus("The viewer-ID player is unavailable. Reload this page before opening.", "bad");
 
     var myRun = ++run, current = incoming;
     phase = "opening"; setBusy(true); clearPreview(); el.stage.hidden = true;
@@ -469,19 +513,34 @@
       }
       if (myRun !== run) return;
       var blob = new Blob(plainParts, { type: current.header.mime || "application/octet-stream" });
+      var acc2 = current.header.access || {};
+      if (acc2.segmentReceipt) {
+        var receipt = acc2.segmentReceipt, revision = receipt.revision;
+        if (receipt.format !== "scrollcast-segment-receipt" || !revision || revision.action.type !== "export-segment" || !SC.verifyManifestWith(revision, (revision.signature || {}).publicKey || "").valid) throw new Error("The excerpt provenance signature does not verify.");
+        var decodedAddress = SC.addressSegment(new Uint8Array(await blob.arrayBuffer()));
+        if (myRun !== run) return;
+        if (decodedAddress.sha256 !== revision.action.output.sha256 || blob.size !== revision.action.output.bytes || JSON.stringify(acc2.rights) !== JSON.stringify(revision.action.rights)) throw new Error("The opened excerpt does not match its signed source receipt.");
+      }
+      // Recheck after asynchronous verification, then record the admission
+      // before exposing media. Pause/resume within that session costs no play.
+      var finalRefusal = refuseReason(current.header);
+      if (finalRefusal) throw new Error(finalRefusal);
+      if (acc2.rule && acc2.rule.kind === "count") noteOpen(current.header.encryption.keyId);
       var url = trackUrl(URL.createObjectURL(blob));
       el.stage.hidden = false; el.name.textContent = current.header.title;
       buildStrip(segs.length);
       for (var k = 0; k < segs.length; k++) paintCell(k, segs[k].root, false);
       totals = { chunks: segs.length, blocks: segs.reduce(function (a,s) { return a+s.blocks; },0), bytes: current.header.totalBytes };
-      paintStats(); noteOpen(current.header.encryption.keyId);
-      var acc2 = current.header.access || {};
+      paintStats();
+      recipient = current;
+      showAllowance(current.header);
       setBadge("opened · every byte verified", "ok");
       el.progress.textContent = "opened from a sealed container with the code";
-      showMedia(current.header.kind === "image" ? "image" : "video", url);
+      showMedia(current.header.kind, url, acc2.watermark);
       if (el.openSave) {
-        el.openSave.hidden = acc2.role !== "edit";
-        if (acc2.role === "edit") { el.openSave.href = url; el.openSave.download = current.header.title; }
+        var downloadAllowed = acc2.rights ? acc2.rights.permissions.edit : acc2.role === "edit";
+        el.openSave.hidden = !downloadAllowed;
+        if (downloadAllowed) { el.openSave.href = url; el.openSave.download = current.header.title; }
       }
       setNote("Every chunk verified and decrypted before the file was opened. Browser viewing terms are not server-enforced tickets.");
       openStatus("opened — every chunk verified before it was decrypted" + (acc2.role ? " · " + ROLE_LABEL[acc2.role] : ""), "ok");
@@ -494,9 +553,32 @@
   }
 
   // ── controls ─────────────────────────────────────────────────────────────
-  function choose(f) {
+  function showAllowance(header) {
+    if (!el.allowance) return;
+    var rule = (header.access || {}).rule || { kind: "forever" };
+    var used = rule.kind === "count" ? opensSoFar(header.encryption.keyId) : 0;
+    el.allowance.hidden = false;
+    el.playStatus.textContent = rule.kind === "count"
+      ? "Play " + used + " of " + rule.max + " · " + Math.max(0, rule.max - used) + " remaining after this screening"
+      : describeAccess(header.access);
+    el.replay.disabled = rule.kind === "count" && used >= rule.max;
+    el.replay.textContent = el.replay.disabled ? "No plays remaining" : "Start next play";
+  }
+  el.video.addEventListener("ended", function () {
+    if (!recipient) return; // The sender's original preview does not use plays.
+    el.video.pause(); el.video.removeAttribute("src"); el.video.load();
+    el.video.hidden = true;
+    releaseUrls();
+    if (el.openSave) { el.openSave.hidden = true; el.openSave.removeAttribute("href"); }
+    if (el.ended) el.ended.hidden = false;
+    if (window.ScrollcastMedia) window.ScrollcastMedia.setWatermark("byo", (recipient.header.access || {}).watermark || null, "ended");
+    showAllowance(recipient.header);
+  });
+  if (el.replay) el.replay.addEventListener("click", function () { openSealed(); });
+  function choose(f, metadata) {
     if (!f) return;
     if (phase === "sealing" || phase === "opening" || phase === "selecting") return;
+    proMetadata = metadata || null;
     if (!f.size || f.size > MAX_BYTES || !kindOf(f)) {
       run++; phase = "idle"; file = null; incoming = null; clearPreview();
 
@@ -533,6 +615,7 @@
         c.classList.toggle("is-on", on);
         c.setAttribute("aria-checked", on ? "true" : "false");
       });
+      if (el.countField) el.countField.hidden = selectedRule() !== "count:custom";
       if (file && phase !== "sealing") launchSeal(file);
     });
     group.addEventListener("keydown", function (e) {
@@ -549,7 +632,26 @@
     });
   });
 
+  [el.playCount, el.viewerId, el.watermarkToggle].forEach(function (control) {
+    if (!control) return;
+    control.addEventListener("change", function () {
+      el.viewerId.disabled = !el.watermarkToggle.checked;
+      if (file && phase !== "sealing") launchSeal(file);
+    });
+  });
+
   el.input.addEventListener("change", function (e) { choose(e.target.files && e.target.files[0]); });
+  document.addEventListener("scrollcast:seal-excerpt", async function (e) {
+    try {
+      if (phase === "sealing" || phase === "opening" || phase === "selecting") throw new Error("Finish the current file operation before sealing an excerpt.");
+      var detail = e.detail, receipt = detail.receipt, revision = receipt.revision;
+      SC.validateRights(detail.rights);
+      if (receipt.format !== "scrollcast-segment-receipt" || revision.action.type !== "export-segment" || !SC.verifyManifestWith(revision, revision.signature.publicKey).valid) throw new Error("The segment receipt does not verify.");
+      var address = SC.addressSegment(new Uint8Array(await detail.file.arrayBuffer()));
+      if (address.sha256 !== revision.action.output.sha256 || detail.file.size !== revision.action.output.bytes || JSON.stringify(detail.rights) !== JSON.stringify(revision.action.rights)) throw new Error("The excerpt or rights do not match the signed receipt.");
+      choose(detail.file, { rights: detail.rights, receipt: receipt });
+    } catch (error) { el.stage.hidden = false; setBadge("could not seal excerpt", "halt"); setNote(error.message); }
+  });
   el.openInput.addEventListener("change", function (e) { chooseSealed(e.target.files && e.target.files[0]); });
 
   [[el.drop, choose], [el.openDrop, chooseSealed]].forEach(function (pair) {
@@ -590,7 +692,7 @@
   });
 
   el.reset.addEventListener("click", function () {
-    run++; phase = "idle"; file = null; sealed = null; incoming = null;
+    run++; phase = "idle"; file = null; sealed = null; incoming = null; proMetadata = null;
     setBusy(false); clearPreview();
     if (el.openTerms) el.openTerms.hidden = true;
     el.input.value = ""; el.openInput.value = ""; el.openCode.value = "";
